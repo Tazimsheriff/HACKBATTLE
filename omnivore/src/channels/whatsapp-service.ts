@@ -209,7 +209,7 @@ class WhatsAppService {
             continue;
           }
 
-          // Record message in history
+          // Record message in history for dashboard observability
           this.addRecentMessage({
             id: msg.key.id || Math.random().toString(),
             from,
@@ -219,12 +219,36 @@ class WhatsAppService {
             direction: isFromMe ? "outbound" : "inbound",
           });
 
-          // Allow processing if inbound OR if sent from self with command prefix ! or /
-          const shouldProcess = !isFromMe || text.startsWith("!") || text.startsWith("/");
-          if (shouldProcess) {
-            const senderJid = msg.key.participant || msg.key.remoteJid || "";
-            await this.handleInboundCommand(from, text, senderName, senderJid, isFromMe);
+          const isGroup = from.endsWith("@g.us");
+          const trimmed = text.trim();
+          const hasCommandPrefix = trimmed.startsWith("!") || trimmed.startsWith("/");
+
+          // Check if bot was explicitly mentioned in the group
+          const botOwner =
+            this.phoneNumber?.replace(/[^0-9]/g, "") ||
+            (this.sock?.user?.id ? this.sock.user.id.split(":")[0].replace(/[^0-9]/g, "") : "");
+          const botJid = this.sock?.user?.id;
+          const mentionedJids: string[] =
+            (msg.message?.extendedTextMessage?.contextInfo?.mentionedJid as string[]) || [];
+          const isMentioned = Boolean(
+            (botOwner && trimmed.includes(botOwner)) ||
+            (botOwner && mentionedJids.some((j) => j.includes(botOwner))) ||
+            (botJid && mentionedJids.includes(botJid))
+          );
+
+          // 🛑 CRITICAL GROUP FILTER: Never reply to regular group chatter!
+          // Only respond if message has an explicit command prefix (! or /) or mentions the bot.
+          if (isGroup && !hasCommandPrefix && !isMentioned) {
+            continue;
           }
+
+          // In self-messages (sent from own phone): only process explicit commands
+          if (isFromMe && !hasCommandPrefix) {
+            continue;
+          }
+
+          const senderJid = msg.key.participant || msg.key.remoteJid || "";
+          await this.handleInboundCommand(from, text, senderName, senderJid, isFromMe, isGroup);
         }
       });
 
@@ -317,10 +341,12 @@ class WhatsAppService {
     text: string,
     senderName: string,
     senderJid: string,
-    isFromMe: boolean
+    isFromMe: boolean,
+    isGroup: boolean
   ): Promise<void> {
     const trimmed = text.trim();
     const lower = trimmed.toLowerCase();
+    const hasCommandPrefix = trimmed.startsWith("!") || trimmed.startsWith("/");
 
     // 0. PRIVILEGE ESCALATION INTERCEPTION: Administrative / destructive commands (kick, ban, remove, kill, etc.)
     const ADMIN_COMMAND_REGEX = /^[!/](kick|ban|remove|kill|shutdown|delete|purge|reset|admin|drop|promote|demote)(\s+.*)?$/i;
@@ -469,10 +495,43 @@ class WhatsAppService {
         return;
       }
 
-      const defaultReply =
-        `🤖 *SAPIENS Sentinel:* Processed request: _"${prompt.slice(0, 80)}"_\n\n` +
-        `SAPIENS Agent is operating within deterministic safety guardrails. Send *!ai <task>* for AI tasks, or *!status* for system metrics.`;
-      await this.sendMessage(from, defaultReply);
+      // In groups: NEVER send unsolicited default chatter!
+      if (isGroup) {
+        if (lower === "!help" || lower === "!commands" || lower === "/help") {
+          const helpReply =
+            `🛡️ *SAPIENS AGENT COMMANDS*\n\n` +
+            `• *!ai <prompt>* — Ask AI assistant\n` +
+            `• *!status* — View system & Sentinel health\n` +
+            `• *!schedule <details>* — Schedule meeting / Google Meet\n` +
+            `• *!ping* — Agent heartbeat check\n` +
+            `• */approve <id>* — Authorize high-risk operation\n` +
+            `• */reject <id>* — Block quarantined operation`;
+          await this.sendMessage(from, helpReply);
+        }
+        return;
+      }
+
+      // In Direct Messages: only send command guide if explicitly requested
+      if (lower === "!help" || lower === "!commands" || lower === "/help") {
+        const helpReply =
+          `🛡️ *SAPIENS AGENT COMMANDS*\n\n` +
+          `• *!ai <prompt>* — Query SAPIENS AI Agent\n` +
+          `• *!status* — View system & Sentinel health\n` +
+          `• *!schedule <details>* — Schedule meeting / Google Meet\n` +
+          `• *!ping* — Agent heartbeat check\n` +
+          `• */approve <id>* — Authorize high-risk operation\n` +
+          `• */reject <id>* — Block quarantined operation`;
+        await this.sendMessage(from, helpReply);
+        return;
+      }
+
+      // If in DM and user sent a regular query without LLM API key
+      if (!isGroup && hasCommandPrefix) {
+        await this.sendMessage(
+          from,
+          `🤖 *SAPIENS Sentinel:* Command received. Configure \`MISTRAL_API_KEY\` or \`GROQ_API_KEY\` in your environment for live LLM reasoning, or send *!status* for telemetry.`
+        );
+      }
     } catch (err: any) {
       console.error("[WhatsAppService] Error executing AI command:", err);
       await this.sendMessage(
