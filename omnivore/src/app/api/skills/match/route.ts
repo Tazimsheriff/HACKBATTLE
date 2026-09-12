@@ -158,14 +158,32 @@ export async function POST(req: Request) {
         if (skill.id === "mqtt_publish_telemetry") score += 30;
       }
 
-      // --- DATABASE & SQL ---
+      // --- DATA VISUALIZATION, CHARTS & FLOWCHARTS ---
+      if (
+        query.includes("chart") ||
+        query.includes("pie") ||
+        query.includes("bar") ||
+        query.includes("diagram") ||
+        query.includes("flowchart") ||
+        query.includes("visual") ||
+        query.includes("graph") ||
+        query.includes("mermaid")
+      ) {
+        if (skill.id === "visual_chart_generator") score += 60;
+        if (skill.id === "flowchart_diagram_builder") score += 55;
+        if (skill.id === "mermaid_architect") score += 45;
+      }
+
+      // --- DATABASE & SQL & BI ---
       if (
         query.includes("database") ||
         query.includes("sql") ||
         query.includes("postgres") ||
         query.includes("csv") ||
-        query.includes("table")
+        query.includes("table") ||
+        query.includes("bi")
       ) {
+        if (skill.id === "database_bi_reporter") score += 50;
         if (skill.id === "database_query") score += 40;
         if (skill.id === "csv_tabular_analyzer" && query.includes("csv")) score += 40;
       }

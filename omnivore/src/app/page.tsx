@@ -44,6 +44,7 @@ import {
   Phone,
 } from "lucide-react";
 import { SKILLS_SH_CATALOG } from "@/skills/registry";
+import { AgentVisualRenderer } from "@/components/AgentVisualRenderer";
 
 interface TelemetryData {
   deviceId: string;
@@ -367,7 +368,29 @@ export default function SapiensAgentStudio() {
   }, [currentAgent]);
 
   const agentToolsList = useMemo(() => {
-    const configuredTools = currentAgent.tools || [];
+    let configuredTools = [...(currentAgent.tools || [])];
+    const agentText = (
+      currentAgent.name +
+      " " +
+      (currentAgent.description || "") +
+      " " +
+      (currentAgent.goal || "") +
+      " " +
+      (currentAgent.instructions || "")
+    ).toLowerCase();
+
+    // Auto-wire relevant skills from skills.sh if agent is a charting / database / BI agent
+    if (
+      agentText.includes("chart") ||
+      agentText.includes("diagram") ||
+      agentText.includes("flowchart") ||
+      agentText.includes("database")
+    ) {
+      if (!configuredTools.includes("visual_chart_generator")) configuredTools.push("visual_chart_generator");
+      if (!configuredTools.includes("flowchart_diagram_builder")) configuredTools.push("flowchart_diagram_builder");
+      if (!configuredTools.includes("database_bi_reporter")) configuredTools.push("database_bi_reporter");
+    }
+
     if (configuredTools.length > 0) {
       return configuredTools.map((tId) => {
         const found = SKILLS_SH_CATALOG.find(
@@ -2130,7 +2153,11 @@ export default function SapiensAgentStudio() {
                             : "bg-[#F7F5F0] border border-[#E6E2DA] text-neutral-900 shadow-2xs rounded-tl-xs"
                         }`}
                       >
-                        {m.content}
+                        {m.role === "assistant" ? (
+                          <AgentVisualRenderer content={m.content} />
+                        ) : (
+                          <span className="whitespace-pre-wrap">{m.content}</span>
+                        )}
 
                         {/* Collapsible reasoning / step trace */}
                         {m.trace && m.trace.length > 0 && (

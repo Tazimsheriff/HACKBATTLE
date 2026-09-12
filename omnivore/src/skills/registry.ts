@@ -531,4 +531,64 @@ export const SKILLS_SH_CATALOG: AgentSkill[] = [
       { name: "maxAllowedRadiusKm", type: "number", required: false, description: "Max perimeter radius in km" },
     ],
   },
+  // ─────────────────────────────────────────────────────────────
+  // 8. DATA VISUALIZATION, CHARTS & FLOWCHARTS
+  // ─────────────────────────────────────────────────────────────
+  {
+    id: "visual_chart_generator",
+    name: "Interactive Visual Chart Generator",
+    functionName: "generate_visual_chart()",
+    description: "Create high-fidelity interactive Pie Charts, Bar Charts, Doughnut Charts, and Line Graphs with custom slices, percentages, colors, and live SVG rendering.",
+    category: "data",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/chart-generator",
+    parameters: [
+      { name: "chartType", type: "string", required: true, description: "pie | bar | doughnut | line" },
+      { name: "title", type: "string", required: true, description: "Title of the chart" },
+      { name: "data", type: "string", required: true, description: "JSON array of items with label, value, and optional color" },
+    ],
+  },
+  {
+    id: "flowchart_diagram_builder",
+    name: "Flowchart & Process Diagram Builder",
+    functionName: "create_flowchart_diagram()",
+    description: "Build visual interactive flowcharts, process logic workflows, sequence diagrams, and system architecture graphs.",
+    category: "data",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/flowcharts-diagrams",
+    parameters: [
+      { name: "diagramType", type: "string", required: true, description: "flowchart | sequence | erDiagram | stateDiagram" },
+      { name: "title", type: "string", required: true, description: "Title of the diagram" },
+      { name: "content", type: "string", required: true, description: "Nodes, connectors, decisions, and descriptions" },
+    ],
+  },
+  {
+    id: "database_bi_reporter",
+    name: "Database BI & SQL Analytics Engine",
+    functionName: "query_database_analytics()",
+    description: "Connect to database tables, parse schemas, run SQL analytical queries, and transform tabular records into visual metrics.",
+    category: "data",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/sql-bi-analytics",
+    parameters: [
+      { name: "query", type: "string", required: true, description: "SQL aggregation query or schema inspection" },
+      { name: "aggregationTarget", type: "string", required: false, description: "Target column or metric to aggregate" },
+    ],
+  },
+  {
+    id: "mermaid_architect",
+    name: "Mermaid.js System Architecture Generator",
+    functionName: "render_mermaid_diagram()",
+    description: "Generate production-grade Mermaid.js syntax for technical architecture diagrams, database ERDs, and state machines.",
+    category: "data",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/mermaid-architect",
+    parameters: [
+      { name: "diagramSyntax", type: "string", required: true, description: "Valid Mermaid graph or flowchart syntax" },
+    ],
+  },
 ];
