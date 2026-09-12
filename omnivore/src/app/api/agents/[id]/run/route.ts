@@ -72,6 +72,34 @@ export async function POST(
       },
     ];
 
+    // Query live Mistral Agent Studio if key is present
+    if (process.env.MISTRAL_API_KEY) {
+      try {
+        const mistralRes = await fetch("https://api.mistral.ai/v1/agents/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            agent_id: "ag_01a0946bfb2270a89d6471222bbd2bed",
+            messages: [
+              {
+                role: "user",
+                content: `Task: ${input}\nTelemetry: Temp -14.2°C, Humidity 86.4%, Door Closed.\nActive Policies: ${activePoliciesMarkdown}\nSynthesize concise operational report.`,
+              },
+            ],
+          }),
+        });
+        const mistralData = await mistralRes.json();
+        if (mistralData.choices?.[0]?.message?.content) {
+          traceSteps[5].content = mistralData.choices[0].message.content;
+        }
+      } catch (mErr) {
+        console.warn("Mistral Studio agent completion fallback:", mErr);
+      }
+    }
+
     const executionTimeMs = Date.now() - startTime + 380;
 
     // 3. Record in DB if available

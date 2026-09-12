@@ -11,7 +11,17 @@ export const initialAgents = [
     description: "Autonomous medical storage monitor with continuous self-learning defrost adaptation and hardware guardrails.",
     goal: "Safeguard vaccine container COLD-01 at -18°C and suppress false alarms.",
     instructions: "Safeguard vaccine containers. Check past experiences for defrost cycles. Strictly require human approval for hardware cutoffs.",
-    model: "google/gemini-2.0-flash-001",
+    model: "open-mistral-nemo",
+    status: "active",
+    tools: ["get_sensor_data", "query_memory", "send_notification", "emergency_compressor_cutoff"],
+  },
+  {
+    id: "mistral-studio-sentinel",
+    name: "Mistral Studio Sentinel",
+    description: "Frontier autonomous agent running live on Mistral Agent Studio (open-mistral-nemo) with hardware OLED integration.",
+    goal: "Preserve biological container integrity within optimal -18°C setpoints.",
+    instructions: "You are OMNIVORE Cold-Chain Sentinel. Monitor temperatures and guard storage containers.",
+    model: "open-mistral-nemo",
     status: "active",
     tools: ["get_sensor_data", "query_memory", "send_notification", "emergency_compressor_cutoff"],
   },
@@ -21,7 +31,7 @@ export const initialAgents = [
     description: "Multi-sensor environmental monitor for temperature, humidity, and door aperture.",
     goal: "Maintain pharma storage humidity under 60% and temperature between 2°C and 8°C.",
     instructions: "Monitor refrigerated medications. Alert on door breaches lasting > 45 seconds.",
-    model: "mistralai/mistral-large-2407",
+    model: "codestral-latest",
     status: "active",
     tools: ["get_sensor_data", "send_notification"],
   },
@@ -47,12 +57,37 @@ export async function POST(req: Request) {
       description = "",
       goal = "",
       instructions = "",
-      model = "google/gemini-2.0-flash-001",
+      model = "open-mistral-nemo",
       tools = ["get_sensor_data", "query_memory", "send_notification"],
     } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Agent name is required" }, { status: 400 });
+    }
+
+    let mistralAgentId: string | null = null;
+    if (process.env.MISTRAL_API_KEY) {
+      try {
+        const mRes = await fetch("https://api.mistral.ai/v1/agents", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            description: description || "Autonomous Agent with OMNIVORE guardrails",
+            instructions: instructions || "Monitor telemetry and adhere to safety guardrails.",
+            model: "open-mistral-nemo",
+          }),
+        });
+        const mData = await mRes.json();
+        if (mData.id) {
+          mistralAgentId = mData.id;
+        }
+      } catch (mErr) {
+        console.warn("Mistral Studio agent creation sync error:", mErr);
+      }
     }
 
     const newAgent = {
@@ -64,6 +99,7 @@ export async function POST(req: Request) {
       model,
       tools,
       status: "active",
+      metadata: mistralAgentId ? { mistralAgentId } : {},
     };
 
     try {

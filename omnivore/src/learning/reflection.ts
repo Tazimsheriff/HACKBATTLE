@@ -5,16 +5,26 @@ import { eq, and } from 'drizzle-orm';
 import { getUnprocessedExperiences, markExperiencesProcessed } from './experience';
 import type { Experience } from '../db/schema';
 
-const isGoogleGeminiKey = !!process.env.GEMINI_API_KEY;
-const apiKey = process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY || 'sk-or-placeholder';
-const baseURL = isGoogleGeminiKey
+const useMistral = !!process.env.MISTRAL_API_KEY;
+const isGoogleGeminiKey = !useMistral && !!process.env.GEMINI_API_KEY;
+const apiKey =
+  process.env.MISTRAL_API_KEY ||
+  process.env.GEMINI_API_KEY ||
+  process.env.OPENROUTER_API_KEY ||
+  'sk-or-placeholder';
+
+const baseURL = useMistral
+  ? 'https://api.mistral.ai/v1'
+  : isGoogleGeminiKey
   ? 'https://generativelanguage.googleapis.com/v1beta/openai/'
   : 'https://openrouter.ai/api/v1';
 
 const openrouter = new OpenAI({
   apiKey,
   baseURL,
-  defaultHeaders: isGoogleGeminiKey
+  defaultHeaders: useMistral
+    ? {}
+    : isGoogleGeminiKey
     ? {}
     : {
         'HTTP-Referer': 'https://omnivore-agent.vercel.app',
@@ -98,7 +108,11 @@ Return ONLY the JSON object, no markdown.`;
 
   try {
     const response = await openrouter.chat.completions.create({
-      model: isGoogleGeminiKey ? 'gemini-2.0-flash' : 'google/gemini-2.0-flash-001',
+      model: useMistral
+        ? 'open-mistral-nemo'
+        : isGoogleGeminiKey
+        ? 'gemini-2.0-flash'
+        : 'google/gemini-2.0-flash-001',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
       max_tokens: 800,

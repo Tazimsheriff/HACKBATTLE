@@ -24,7 +24,7 @@ export default function CreateAgentPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [goal, setGoal] = useState("");
-  const [model, setModel] = useState("google/gemini-2.0-flash-001");
+  const [model, setModel] = useState("open-mistral-nemo");
   const [temperature, setTemperature] = useState(0.2);
   const [hardwareDeviceId, setHardwareDeviceId] = useState("ESP32-S3-COLD-01");
   const [instructions, setInstructions] = useState(
@@ -286,10 +286,10 @@ Your mission is to preserve pharmaceutical integrity.
                   onChange={(e) => setModel(e.target.value)}
                   className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
                 >
-                  <option value="google/gemini-2.0-flash-001">google/gemini-2.0-flash-001 (Recommended • Sub-second)</option>
-                  <option value="mistralai/mistral-large-2407">mistral-large-2407 (Mistral Large 2)</option>
-                  <option value="mistralai/mistral-nemo">mistral-nemo-12b (Edge Optimized)</option>
-                  <option value="nvidia/llama-3.1-nemotron-70b-instruct">nvidia/llama-3.1-nemotron-70b (Reward Aligned)</option>
+                  <option value="open-mistral-nemo">open-mistral-nemo (Mistral Studio • Free Tier • Recommended)</option>
+                  <option value="codestral-latest">codestral-latest (Mistral Code &amp; Logic)</option>
+                  <option value="mistral-small-latest">mistral-small-latest (Mistral Studio)</option>
+                  <option value="google/gemini-2.0-flash-001">google/gemini-2.0-flash-001 (Fast Fallback)</option>
                 </select>
               </div>
 
