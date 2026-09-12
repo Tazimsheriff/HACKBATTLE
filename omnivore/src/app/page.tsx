@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 import {
   Shield,
@@ -42,6 +42,7 @@ import {
   Hash,
   X,
 } from "lucide-react";
+import { SKILLS_SH_CATALOG } from "@/skills/registry";
 
 interface TelemetryData {
   deviceId: string;
@@ -102,6 +103,31 @@ interface AgentItem {
   tools?: string[];
 }
 
+const getGreetingForAgent = (ag: AgentItem) => {
+  const isHw = Boolean(
+    (ag as any)?.metadata?.hasHardware === true ||
+    (ag as any)?.hasHardware === true ||
+    ag.id === "sapiens-cold-chain" ||
+    ag.id === "omnivore-cold-chain" ||
+    ag.id === "pharmacy-vault-s3" ||
+    ag.tools?.includes("get_sensor_data") ||
+    ag.tools?.includes("emergency_compressor_cutoff") ||
+    ag.tools?.includes("emergency_relay_cutoff") ||
+    (ag.name && (
+      ag.name.toLowerCase().includes("cold-chain") ||
+      ag.name.toLowerCase().includes("cold chain") ||
+      ag.name.toLowerCase().includes("vaccine") ||
+      ag.name.toLowerCase().includes("pharmacy") ||
+      ag.name.toLowerCase().includes("esp32")
+    ))
+  );
+
+  if (isHw) {
+    return `${ag.name} initialized. Connected to ESP32-S3 (COM4) on-device telemetry. Hardware guardrails and sensor telemetry active.`;
+  }
+  return `${ag.name} initialized. Ready to assist with ${ag.goal || ag.description || "scheduling, calendar coordination, emails, and daily productivity"}. Select a scenario above or enter a prompt below to get started.`;
+};
+
 export default function SapiensAgentStudio() {
   // Top view mode: "builder" (Sapiens Agent Builder Studio) vs "showcase" (Sapiens Frontier Landing)
   const [viewMode, setViewMode] = useState<"builder" | "showcase">("builder");
@@ -139,7 +165,6 @@ When reading sensor data:
   ]);
   const [selectedAgentId, setSelectedAgentId] = useState("sapiens-cold-chain");
 
-
   // Channels Form
   const [discordWebhook, setDiscordWebhook] = useState("");
   const [telegramToken, setTelegramToken] = useState("");
@@ -149,13 +174,140 @@ When reading sensor data:
 
   // Builder Config State (synced with selectedAgent)
   const currentAgent = agentsList.find((a) => a.id === selectedAgentId) || agentsList[0];
+
+  const isHardwareAgent = useMemo(() => {
+    return Boolean(
+      (currentAgent as any)?.metadata?.hasHardware === true ||
+      (currentAgent as any)?.hasHardware === true ||
+      currentAgent.id === "sapiens-cold-chain" ||
+      currentAgent.id === "omnivore-cold-chain" ||
+      currentAgent.id === "pharmacy-vault-s3" ||
+      currentAgent.tools?.includes("get_sensor_data") ||
+      currentAgent.tools?.includes("emergency_compressor_cutoff") ||
+      currentAgent.tools?.includes("emergency_relay_cutoff") ||
+      (currentAgent.name && (
+        currentAgent.name.toLowerCase().includes("cold-chain") ||
+        currentAgent.name.toLowerCase().includes("cold chain") ||
+        currentAgent.name.toLowerCase().includes("vaccine") ||
+        currentAgent.name.toLowerCase().includes("pharmacy") ||
+        currentAgent.name.toLowerCase().includes("esp32")
+      ))
+    );
+  }, [currentAgent]);
+
+  const agentToolsList = useMemo(() => {
+    const configuredTools = currentAgent.tools || [];
+    if (configuredTools.length > 0) {
+      return configuredTools.map((tId) => {
+        const found = SKILLS_SH_CATALOG.find(
+          (s) =>
+            s.id === tId ||
+            s.functionName.replace("()", "") === tId ||
+            s.name.toLowerCase() === tId.toLowerCase()
+        );
+        if (found) {
+          return {
+            key: tId,
+            name: found.functionName,
+            desc: found.description,
+            risk: found.risk,
+            riskColor:
+              found.risk === "HIGH"
+                ? "bg-rose-50 text-rose-700 border-rose-300"
+                : found.risk === "MEDIUM"
+                ? "bg-amber-50 text-amber-800 border-amber-300"
+                : "bg-emerald-50 text-emerald-700 border-emerald-300",
+          };
+        }
+        return {
+          key: tId,
+          name: `${tId}()`,
+          desc: "Active agent capability registered with safety guardrails",
+          risk: "LOW" as const,
+          riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
+        };
+      });
+    }
+
+    if (isHardwareAgent) {
+      return [
+        {
+          key: "get_sensor_data",
+          name: "get_sensor_data()",
+          desc: "Reads live ESP32 temperature & humidity via I2C",
+          risk: "LOW" as const,
+          riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
+        },
+        {
+          key: "query_memory",
+          name: "query_memory()",
+          desc: "Retrieves episodic memories & approved policies",
+          risk: "LOW" as const,
+          riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
+        },
+        {
+          key: "send_notification",
+          name: "send_notification()",
+          desc: "Multi-channel alerts (Telegram / WhatsApp / Discord)",
+          risk: "MED" as const,
+          riskColor: "bg-amber-50 text-amber-800 border-amber-300",
+        },
+        {
+          key: "emergency_compressor_cutoff",
+          name: "emergency_compressor_cutoff()",
+          desc: "Thermal overload relay trip. STRICT APPROVAL GATED.",
+          risk: "HIGH" as const,
+          riskColor: "bg-rose-50 text-rose-700 border-rose-300",
+        },
+      ];
+    }
+
+    return [
+      {
+        key: "read_calendar",
+        name: "read_calendar()",
+        desc: "Inspect calendar events, attendees, and scheduling conflicts",
+        risk: "LOW" as const,
+        riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
+      },
+      {
+        key: "read_emails",
+        name: "read_emails()",
+        desc: "Scan and parse unread Gmail inbox messages",
+        risk: "LOW" as const,
+        riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
+      },
+      {
+        key: "web_search",
+        name: "web_search()",
+        desc: "Live web search & research lookup",
+        risk: "LOW" as const,
+        riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
+      },
+      {
+        key: "query_memory",
+        name: "query_memory()",
+        desc: "Retrieves past task context & user preferences",
+        risk: "LOW" as const,
+        riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
+      },
+      {
+        key: "send_notification",
+        name: "send_notification()",
+        desc: "Multi-channel alerts (Telegram / WhatsApp / Discord)",
+        risk: "MED" as const,
+        riskColor: "bg-amber-50 text-amber-800 border-amber-300",
+      },
+    ];
+  }, [currentAgent, isHardwareAgent]);
+
   const [agentName, setAgentName] = useState(currentAgent.name);
   const [agentDesc, setAgentDesc] = useState(currentAgent.description || "");
   const [selectedModel, setSelectedModel] = useState(currentAgent.model);
   const [systemPrompt, setSystemPrompt] = useState(currentAgent.instructions || "");
   const [studioApiKey, setStudioApiKey] = useState("");
   const [showStudioApiKey, setShowStudioApiKey] = useState(false);
-  const [enabledTools, setEnabledTools] = useState({
+  const [enabledTools, setEnabledTools] = useState<Record<string, boolean>>({
     read_emails: true,
     web_search: true,
     get_sensor_data: true,
@@ -176,6 +328,12 @@ When reading sensor data:
       if (typeof window !== "undefined") {
         localStorage.setItem("sapiens_active_agent_id", ag.id);
       }
+      setMessages((prev) => {
+        if (prev.length <= 1) {
+          return [{ role: "assistant", content: getGreetingForAgent(ag) }];
+        }
+        return prev;
+      });
     }
   }, [selectedAgentId, agentsList]);
 
@@ -194,9 +352,9 @@ When reading sensor data:
       setAgentDesc(ag.description || "");
       setSelectedModel(ag.model);
       setSystemPrompt(ag.instructions || "");
+      setMessages([{ role: "assistant", content: getGreetingForAgent(ag) }]);
     }
   };
-
 
   // Test Channel
   const handleTestChannel = async (channel: "whatsapp" | "discord" | "telegram") => {
@@ -241,11 +399,10 @@ When reading sensor data:
       trace?: any[];
       policiesUsed?: string;
     }>
-  >([
+  >(() => [
     {
       role: "assistant",
-      content:
-        "SAPIENS Cold-Chain Agent initialized. Connected to ESP32-S3 (COM4) on-device telemetry. Learned Policy #1 (Defrost Suppression) is active in system context.",
+      content: getGreetingForAgent(currentAgent),
     },
   ]);
   const [isRunning, setIsRunning] = useState(false);
@@ -266,6 +423,22 @@ When reading sensor data:
   const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
   const [trustScore, setTrustScore] = useState(92.4);
   const [isReflecting, setIsReflecting] = useState(false);
+
+  const agentApprovals = useMemo(() => {
+    if (isHardwareAgent) return approvals;
+    return approvals.filter(
+      (a) =>
+        a.toolName !== "emergency_compressor_cutoff" &&
+        a.toolName !== "emergency_relay_cutoff" &&
+        a.toolName !== "get_sensor_data"
+    );
+  }, [approvals, isHardwareAgent]);
+
+  useEffect(() => {
+    if (!isHardwareAgent && arenaTab === "oled") {
+      setArenaTab("chat");
+    }
+  }, [isHardwareAgent, arenaTab]);
 
   // Fetch initial API state
   const fetchData = async () => {
@@ -425,6 +598,11 @@ When reading sensor data:
         body: JSON.stringify({
           input: promptToSend,
           apiKey: studioApiKey.trim() || undefined,
+          isHardware: isHardwareAgent,
+          agentName: currentAgent.name,
+          agentGoal: currentAgent.goal,
+          agentInstructions: systemPrompt || currentAgent.instructions,
+          agentTools: currentAgent.tools,
         }),
       });
       const data = await res.json();
@@ -444,7 +622,9 @@ When reading sensor data:
         ...prev,
         {
           role: "assistant",
-          content: "Execution completed in fallback demo mode. Cold-chain status nominal.",
+          content: isHardwareAgent
+            ? "Execution completed in fallback demo mode. Cold-chain status nominal."
+            : "Execution completed in fallback demo mode. Task processed safely within guardrails.",
         },
       ]);
     } finally {
@@ -940,7 +1120,7 @@ When reading sensor data:
                   Instructions (System Prompt)
                 </label>
                 <span className="text-[10px] font-mono text-neutral-500">
-                  {policies.length} Learned Policies Injected
+                  Execution Guardrails Active
                 </span>
               </div>
               <textarea
@@ -950,16 +1130,15 @@ When reading sensor data:
                 className="w-full bg-[#F7F5F0] border border-[#E6E2DA] text-xs text-neutral-800 font-mono rounded p-2.5 focus:outline-none focus:border-[#71ce34] leading-relaxed resize-none focus:bg-white"
               />
 
-              {/* Injected Policies Pill */}
-              <div className="p-2.5 rounded bg-[#F2FAEE] border border-[#71ce34]/30 space-y-1">
-                <span className="text-[10px] font-bold text-[#71ce34] uppercase tracking-wider block">
-                  ⚡ Dynamically Injected Learned Policy:
+              {/* Guardrail Verification Pill */}
+              <div className="p-2.5 rounded bg-[#F2FAEE] border border-[#71ce34]/30 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-neutral-700 font-medium flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-[#71ce34]" />
+                  Deterministic Guardrail Engine Active
                 </span>
-                {policies.slice(0, 1).map((p) => (
-                  <div key={p.id} className="text-xs text-neutral-800 font-mono">
-                    <span className="text-emerald-700 font-bold">&ldquo;{p.title}&rdquo;</span> — {p.action}
-                  </div>
-                ))}
+                <span className="px-1.5 py-0.5 text-[9px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-300 rounded font-bold">
+                  VERIFIED
+                </span>
               </div>
             </div>
 
@@ -970,54 +1149,11 @@ When reading sensor data:
                   <Wrench className="w-3.5 h-3.5 text-[#71ce34]" />
                   Tool Capabilities &amp; Risk Registry
                 </span>
-                <span className="text-[10px] text-neutral-500">Eve SDK Tools</span>
+                <span className="text-[10px] text-neutral-500">Active Skills ({agentToolsList.length})</span>
               </label>
 
               <div className="space-y-2 text-xs">
-                {[
-                  {
-                    key: "read_emails",
-                    name: "read_emails()",
-                    desc: "Scan and parse Gmail inbox messages",
-                    risk: "LOW",
-                    riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                  },
-                  {
-                    key: "web_search",
-                    name: "web_search()",
-                    desc: "Live web search & research lookup",
-                    risk: "LOW",
-                    riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                  },
-                  {
-                    key: "get_sensor_data",
-                    name: "get_sensor_data()",
-                    desc: "Reads live ESP32 temperature & humidity via I2C",
-                    risk: "LOW",
-                    riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                  },
-                  {
-                    key: "query_memory",
-                    name: "query_memory()",
-                    desc: "Retrieves episodic memories & approved policies",
-                    risk: "LOW",
-                    riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                  },
-                  {
-                    key: "send_notification",
-                    name: "send_notification()",
-                    desc: "Multi-channel alerts (Telegram / WhatsApp / Discord)",
-                    risk: "MED",
-                    riskColor: "bg-amber-50 text-amber-800 border-amber-300",
-                  },
-                  {
-                    key: "emergency_compressor_cutoff",
-                    name: "emergency_compressor_cutoff()",
-                    desc: "Thermal overload relay trip. STRICT APPROVAL GATED.",
-                    risk: "HIGH",
-                    riskColor: "bg-rose-50 text-rose-700 border-rose-300",
-                  },
-                ].map((tool) => (
+                {agentToolsList.map((tool) => (
                   <div
                     key={tool.key}
                     className="p-2.5 rounded bg-[#FAF8F5] border border-[#EAE6DE] flex items-center justify-between gap-2"
@@ -1033,7 +1169,7 @@ When reading sensor data:
                     </div>
                     <input
                       type="checkbox"
-                      checked={(enabledTools as any)[tool.key]}
+                      checked={enabledTools[tool.key] !== false}
                       onChange={(e) =>
                         setEnabledTools({ ...enabledTools, [tool.key]: e.target.checked })
                       }
@@ -1041,56 +1177,6 @@ When reading sensor data:
                     />
                   </div>
                 ))}
-              </div>
-            </div>
-
-            {/* Continuous Learning & Policy Promotion */}
-            <div className="sapiens-card p-3.5 space-y-3 border-[#71ce34]/30 bg-[#F4FBF0]">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-neutral-900 flex items-center gap-1.5">
-                  <Brain className="w-3.5 h-3.5 text-[#71ce34]" />
-                  Self-Learning Loop &amp; Candidate Review
-                </span>
-                <button
-                  onClick={handleReflect}
-                  disabled={isReflecting}
-                  className="text-[10px] font-bold px-2.5 py-1 rounded bg-[#71ce34] hover:bg-[#62b62b] text-white transition flex items-center gap-1 shadow-xs"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isReflecting ? "animate-spin" : ""}`} />
-                  Trigger Reflection
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {patterns
-                  .filter((p) => p.status === "candidate")
-                  .map((pat) => (
-                    <div
-                      key={pat.id}
-                      className="p-2.5 rounded bg-white border border-amber-300 flex flex-col gap-2 shadow-xs"
-                    >
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-amber-800">Candidate Pattern Detected</span>
-                        <span className="text-[10px] font-mono text-neutral-500">
-                          {pat.observationCount}x occurrences
-                        </span>
-                      </div>
-                      <p className="text-xs text-neutral-700">{pat.description}</p>
-                      <button
-                        onClick={() => handleApprovePattern(pat.id)}
-                        className="self-end px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] rounded flex items-center gap-1 transition shadow-xs"
-                      >
-                        <Check className="w-3 h-3" />
-                        Approve as Active Policy
-                      </button>
-                    </div>
-                  ))}
-
-                {patterns.filter((p) => p.status === "candidate").length === 0 && (
-                  <p className="text-[11px] text-neutral-500 text-center py-2">
-                    No candidate patterns pending approval. All historical reflections synthesized.
-                  </p>
-                )}
               </div>
             </div>
           </div>
@@ -1104,13 +1190,13 @@ When reading sensor data:
               <div className="flex space-x-1 shrink-0 overflow-x-auto no-scrollbar py-0.5">
                 {[
                   { id: "chat", label: "Studio Chat Arena", icon: Bot },
-                  { id: "oled", label: "ESP32 OLED Mirror", icon: Cpu },
+                  ...(isHardwareAgent ? [{ id: "oled", label: "ESP32 OLED Mirror", icon: Cpu }] : []),
                   { id: "trace", label: "Trace Inspector", icon: Layers },
                   {
                     id: "approvals",
                     label: "Approvals Inbox",
                     icon: Lock,
-                    badge: approvals.filter((a) => a.status === "pending").length,
+                    badge: agentApprovals.filter((a) => a.status === "pending").length,
                   },
                 ].map((tab) => {
                   const Icon = tab.icon;
@@ -1137,26 +1223,38 @@ When reading sensor data:
                 })}
               </div>
 
-              {/* Live ESP32 Quick Status Pill */}
-              <div className="hidden md:flex items-center gap-2.5 text-xs font-mono shrink-0 pl-2">
-                <span className="flex items-center gap-1.5 text-neutral-600">
+              {/* Quick Status Pill */}
+              {isHardwareAgent ? (
+                <div className="hidden md:flex items-center gap-2.5 text-xs font-mono shrink-0 pl-2">
+                  <span className="flex items-center gap-1.5 text-neutral-600">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span>Temp:</span>
+                    <span
+                      className={`font-bold transition-colors ${
+                        telemetry.temperature > -10 ? "text-rose-600" : "text-emerald-700"
+                      }`}
+                    >
+                      {telemetry.temperature.toFixed(1)}°C
+                    </span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
+                    S3 ONLINE
+                  </span>
+                </div>
+              ) : (
+                <div className="hidden md:flex items-center gap-2 text-xs font-mono shrink-0 pl-2">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
-                  <span>Temp:</span>
-                  <span
-                    className={`font-bold transition-colors ${
-                      telemetry.temperature > -10 ? "text-rose-600" : "text-emerald-700"
-                    }`}
-                  >
-                    {telemetry.temperature.toFixed(1)}°C
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
+                    🟢 CLOUD RUNTIME READY
                   </span>
-                </span>
-                <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-300 font-bold">
-                  S3 ONLINE
-                </span>
-              </div>
+                </div>
+              )}
             </div>
 
             {/* Quick Test Injections Banner */}
@@ -1164,30 +1262,77 @@ When reading sensor data:
               <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 font-bold mr-1 shrink-0">
                 Inject Scenario:
               </span>
-              <button
-                onClick={() => handleSimulate(-18.2, 81.0, false, "Nominal Storage")}
-                className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-white hover:bg-neutral-50 text-neutral-800 border border-[#E0DCD4] text-[11px] sm:text-xs font-medium transition shadow-2xs"
-              >
-                ❄️ Nominal (-18.2°C)
-              </button>
-              <button
-                onClick={() => handleSimulate(-14.2, 87.0, false, "Defrost Spike")}
-                className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-[#F2FAEE] hover:bg-[#E5F6DE] text-[#71ce34] border border-[#71ce34]/40 text-[11px] sm:text-xs font-bold transition flex items-center gap-1 shadow-2xs"
-              >
-                <Sparkles className="w-3 h-3" /> Defrost Spike (-14.2°C)
-              </button>
-              <button
-                onClick={() => handleSimulate(+2.8, 93.0, false, "Critical Breach")}
-                className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-[11px] sm:text-xs font-medium transition shadow-2xs"
-              >
-                🚨 Thermal Breach (+2.8°C)
-              </button>
-              <button
-                onClick={() => handleSimulate(-15.0, 92.0, true, "Door Open")}
-                className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-[11px] sm:text-xs font-medium transition shadow-2xs"
-              >
-                🚪 Door Left Open
-              </button>
+              {isHardwareAgent ? (
+                <>
+                  <button
+                    onClick={() => handleSimulate(-18.2, 81.0, false, "Nominal Storage")}
+                    className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-white hover:bg-neutral-50 text-neutral-800 border border-[#E0DCD4] text-[11px] sm:text-xs font-medium transition shadow-2xs"
+                  >
+                    ❄️ Nominal (-18.2°C)
+                  </button>
+                  <button
+                    onClick={() => handleSimulate(-14.2, 87.0, false, "Defrost Spike")}
+                    className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-[#F2FAEE] hover:bg-[#E5F6DE] text-[#71ce34] border border-[#71ce34]/40 text-[11px] sm:text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                  >
+                    <Sparkles className="w-3 h-3" /> Defrost Spike (-14.2°C)
+                  </button>
+                  <button
+                    onClick={() => handleSimulate(+2.8, 93.0, false, "Critical Breach")}
+                    className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-[11px] sm:text-xs font-medium transition shadow-2xs"
+                  >
+                    🚨 Thermal Breach (+2.8°C)
+                  </button>
+                  <button
+                    onClick={() => handleSimulate(-15.0, 92.0, true, "Door Open")}
+                    className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-[11px] sm:text-xs font-medium transition shadow-2xs"
+                  >
+                    🚪 Door Left Open
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() =>
+                      handleSendMessage(
+                        "Schedule Conflict: I have an overlapping client sync and team standup tomorrow at 2:00 PM. Review priorities and suggest resolution."
+                      )
+                    }
+                    className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-white hover:bg-neutral-50 text-neutral-800 border border-[#E0DCD4] text-[11px] sm:text-xs font-medium transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                  >
+                    📅 Schedule Conflict
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleSendMessage(
+                        "Scan VIP Inbox: Parse unread urgent emails from leadership and draft an executive briefing."
+                      )
+                    }
+                    className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-[#F2FAEE] hover:bg-[#E5F6DE] text-[#71ce34] border border-[#71ce34]/40 text-[11px] sm:text-xs font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer"
+                  >
+                    ✉️ Scan VIP Inbox
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleSendMessage(
+                        "Daily Agenda: Synthesize my calendar commitments, tasks, and focus time blocks for today."
+                      )
+                    }
+                    className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] sm:text-xs font-medium transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                  >
+                    📋 Daily Agenda
+                  </button>
+                  <button
+                    onClick={() =>
+                      handleSendMessage(
+                        "Broadcast Digest: Draft and format a project update summary to send via multi-channel notification."
+                      )
+                    }
+                    className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-300 text-[11px] sm:text-xs font-medium transition shadow-2xs flex items-center gap-1 cursor-pointer"
+                  >
+                    🚀 Broadcast Digest
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Content for Arena Tab 1: Chat Stream */}
@@ -1256,7 +1401,11 @@ When reading sensor data:
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                      placeholder={`Prompt ${agentName} e.g., 'Evaluate container COLD-01 status at 02:00 UTC'...`}
+                      placeholder={
+                        isHardwareAgent
+                          ? `Prompt ${agentName} e.g., 'Evaluate container COLD-01 status at 02:00 UTC'...`
+                          : `Prompt ${agentName} e.g., 'Schedule a 30-min sync with team tomorrow at 2 PM'...`
+                      }
                       className="flex-1 bg-white border border-[#E0DCD4] rounded-lg px-3 sm:px-3.5 py-2 sm:py-2.5 text-xs text-[#0C0C0D] placeholder:text-neutral-400 focus:outline-none focus:border-[#71ce34] focus:ring-1 focus:ring-[#71ce34]/30 font-mono shadow-xs transition"
                     />
                     <button
@@ -1329,33 +1478,69 @@ When reading sensor data:
                   Agent Execution &amp; Tool Intercept Log
                 </h3>
                 <div className="space-y-2.5 font-mono text-xs">
-                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
-                    <div className="flex items-center justify-between text-[#71ce34] font-bold">
-                      <span>TOOL: get_sensor_data()</span>
-                      <span className="text-emerald-700">RISK: LOW (APPROVED)</span>
-                    </div>
-                    <p className="text-neutral-700 break-all">Returned: {JSON.stringify(telemetry)}</p>
-                  </div>
+                  {isHardwareAgent ? (
+                    <>
+                      <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
+                        <div className="flex items-center justify-between text-[#71ce34] font-bold">
+                          <span>TOOL: get_sensor_data()</span>
+                          <span className="text-emerald-700">RISK: LOW (APPROVED)</span>
+                        </div>
+                        <p className="text-neutral-700 break-all">Returned: {JSON.stringify(telemetry)}</p>
+                      </div>
 
-                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
-                    <div className="flex items-center justify-between text-[#71ce34] font-bold">
-                      <span>TOOL: query_memory()</span>
-                      <span className="text-emerald-700">RISK: LOW (APPROVED)</span>
-                    </div>
-                    <p className="text-neutral-700">
-                      Query: &ldquo;defrost spike 02:00 UTC&rdquo; → Matched Learned Policy #1 (96.4% confidence)
-                    </p>
-                  </div>
+                      <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
+                        <div className="flex items-center justify-between text-[#71ce34] font-bold">
+                          <span>TOOL: query_memory()</span>
+                          <span className="text-emerald-700">RISK: LOW (APPROVED)</span>
+                        </div>
+                        <p className="text-neutral-700">
+                          Query: &ldquo;defrost spike 02:00 UTC&rdquo; → Matched Learned Policy #1 (96.4% confidence)
+                        </p>
+                      </div>
 
-                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
-                    <div className="flex items-center justify-between text-[#71ce34] font-bold">
-                      <span>TOOL: send_notification()</span>
-                      <span className="text-amber-800">RISK: MED (POLICY-GATED)</span>
-                    </div>
-                    <p className="text-neutral-700">
-                      Decision: Held during defrost window; routine log recorded without operator escalation.
-                    </p>
-                  </div>
+                      <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
+                        <div className="flex items-center justify-between text-[#71ce34] font-bold">
+                          <span>TOOL: send_notification()</span>
+                          <span className="text-amber-800">RISK: MED (POLICY-GATED)</span>
+                        </div>
+                        <p className="text-neutral-700">
+                          Decision: Held during defrost window; routine log recorded without operator escalation.
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
+                        <div className="flex items-center justify-between text-[#71ce34] font-bold">
+                          <span>TOOL: read_calendar()</span>
+                          <span className="text-emerald-700">RISK: LOW (APPROVED)</span>
+                        </div>
+                        <p className="text-neutral-700">
+                          Inspect upcoming schedule: Found 1 potential meeting overlap at 14:00. Suggested alternate slot at 15:30.
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
+                        <div className="flex items-center justify-between text-[#71ce34] font-bold">
+                          <span>TOOL: read_emails()</span>
+                          <span className="text-emerald-700">RISK: LOW (APPROVED)</span>
+                        </div>
+                        <p className="text-neutral-700">
+                          Query: &ldquo;is:unread label:urgent&rdquo; → Parsed 2 high-priority messages from leadership.
+                        </p>
+                      </div>
+
+                      <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
+                        <div className="flex items-center justify-between text-[#71ce34] font-bold">
+                          <span>TOOL: send_notification()</span>
+                          <span className="text-amber-800">RISK: MED (GUARDRAIL-GATED)</span>
+                        </div>
+                        <p className="text-neutral-700">
+                          Decision: Drafted digest dispatched to configured channels (WhatsApp / Discord / Telegram).
+                        </p>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -1371,7 +1556,7 @@ When reading sensor data:
                 </div>
 
                 <div className="space-y-3">
-                  {approvals.map((app) => (
+                  {agentApprovals.map((app) => (
                     <div
                       key={app.id}
                       className="p-3.5 sm:p-4 rounded-lg bg-[#F4FBF0] border border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 text-xs shadow-2xs hover-lift transition-all"
@@ -1408,6 +1593,16 @@ When reading sensor data:
                       )}
                     </div>
                   ))}
+
+                  {agentApprovals.length === 0 && (
+                    <div className="p-8 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] text-center space-y-2">
+                      <Shield className="w-6 h-6 text-[#71ce34] mx-auto" />
+                      <h4 className="text-xs font-bold text-neutral-800">No Pending Approvals</h4>
+                      <p className="text-xs text-neutral-500 max-w-sm mx-auto">
+                        All autonomous operations are within safe parameters. Any high-risk tool execution will automatically pause and queue here for authorization.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
