@@ -99,8 +99,8 @@ interface AgentItem {
   tools?: string[];
 }
 
-export default function MistralAgentStudio() {
-  // Top view mode: "builder" (Mistral Agent Builder Studio) vs "showcase" (Mistral Frontier Landing)
+export default function SapiensAgentStudio() {
+  // Top view mode: "builder" (Sapiens Agent Builder Studio) vs "showcase" (Sapiens Frontier Landing)
   const [viewMode, setViewMode] = useState<"builder" | "showcase">("builder");
 
   // Modals state
@@ -115,7 +115,7 @@ export default function MistralAgentStudio() {
       name: "Cold-Chain Guardian",
       description: "Autonomous medical storage monitor with continuous self-learning defrost adaptation and hardware guardrails.",
       goal: "Safeguard vaccine container COLD-01 at -18°C and suppress false alarms.",
-      instructions: `You are the OMNIVORE Cold-Chain Agent. Your goal is to safeguard vaccine temperature containers at -18°C.
+      instructions: `You are the SAPIENS Cold-Chain Agent. Your goal is to safeguard vaccine temperature containers at -18°C.
 When reading sensor data:
 1. Cross-reference temperature spikes against past episodic experiences.
 2. If the anomaly matches known defrost routines (02:00 UTC), hold alarms.
@@ -130,7 +130,7 @@ When reading sensor data:
       description: "Multi-sensor environmental monitor for temperature, humidity, and door aperture.",
       goal: "Maintain pharma storage humidity under 60% and temperature between 2°C and 8°C.",
       instructions: "Monitor refrigerated medications. Alert on door breaches lasting > 45 seconds.",
-      model: "mistralai/mistral-large-2407",
+      model: "sapiens/frontier-reasoning",
       tools: ["get_sensor_data", "send_notification"],
     },
   ]);
@@ -240,7 +240,7 @@ When reading sensor data:
     {
       role: "assistant",
       content:
-        "OMNIVORE Cold-Chain Agent v1.2 initialized. Connected to ESP32-S3 (COM4) on-device telemetry. Learned Policy #1 (Defrost Suppression) is active in system context.",
+        "SAPIENS Cold-Chain Agent initialized. Connected to ESP32-S3 (COM4) on-device telemetry. Learned Policy #1 (Defrost Suppression) is active in system context.",
     },
   ]);
   const [isRunning, setIsRunning] = useState(false);
@@ -493,7 +493,7 @@ When reading sensor data:
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* MISTRAL TOP NAVIGATION BAR                                    */}
+      {/* SAPIENS TOP NAVIGATION BAR                                    */}
       {/* ───────────────────────────────────────────────────────────── */}
       <header className="border-b border-[#E6E2DA] bg-[#FAF8F5]/90 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
@@ -503,20 +503,20 @@ When reading sensor data:
               className="flex items-center gap-2 cursor-pointer"
               onClick={() => setViewMode("showcase")}
             >
-              {/* Mistral Iconic Pixel Glyph */}
+              {/* Sapiens Iconic Pixel Glyph */}
               <div className="grid grid-cols-3 gap-0.5 w-6 h-6 p-0.5 bg-[#FA500F] rounded-xs shadow-md shadow-[#FA500F]/20">
                 <div className="bg-white"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-white"></div>
                 <div className="bg-white"></div>
                 <div className="bg-white"></div>
                 <div className="bg-white"></div>
                 <div className="bg-white"></div>
                 <div className="bg-transparent"></div>
+                <div className="bg-transparent"></div>
+                <div className="bg-white"></div>
                 <div className="bg-white"></div>
               </div>
               <span className="font-extrabold text-base tracking-tight text-[#0C0C0D] flex items-center gap-1">
-                OMNIVORE <span className="text-[#FA500F]">STUDIO</span>
+                SAPIENS <span className="text-[#FA500F]">STUDIO</span>
               </span>
             </div>
 
@@ -805,7 +805,7 @@ When reading sensor data:
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* VIEW 1: MISTRAL AGENT BUILDER STUDIO (WHITE MODE SPLIT)       */}
+      {/* VIEW 1: SAPIENS AGENT BUILDER STUDIO (WHITE MODE SPLIT)       */}
       {/* ───────────────────────────────────────────────────────────── */}
       {viewMode === "builder" && (
         <div className="flex-1 max-w-[1600px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-[#E6E2DA]">
@@ -849,7 +849,7 @@ When reading sensor data:
             </div>
 
             {/* Model Selector */}
-            <div className="mistral-card p-3.5 space-y-2">
+            <div className="sapiens-card p-3.5 space-y-2">
               <label className="text-xs font-bold text-neutral-800 flex items-center justify-between">
                 <span>Base Intelligence Model</span>
                 <span className="text-[10px] font-mono text-[#FA500F] font-semibold">Low Latency Tool Calling</span>
@@ -859,14 +859,14 @@ When reading sensor data:
                 onChange={(e) => setSelectedModel(e.target.value)}
                 className="w-full bg-[#F7F5F0] border border-[#E6E2DA] text-xs text-[#0C0C0D] rounded p-2 focus:outline-none focus:border-[#FA500F] font-mono"
               >
-                <option value="google/gemini-2.0-flash-001">google/gemini-2.0-flash-001 (Active - Free Tier)</option>
-                <option value="mistralai/mistral-large-2407">mistral-large-2407 (Mistral Large 2)</option>
-                <option value="mistralai/mistral-nemo">mistral-nemo-12b (Edge Optimized)</option>
+                <option value="sapiens-reasoning-frontier">sapiens-frontier (Deep Reasoning Engine)</option>
+                <option value="sapiens-edge-nemo">sapiens-nemo-12b (Edge Optimized)</option>
+                <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001 (Active - Free Tier)</option>
               </select>
             </div>
 
             {/* System Prompt & Injected Policies */}
-            <div className="mistral-card p-3.5 space-y-2">
+            <div className="sapiens-card p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
                   <Terminal className="w-3.5 h-3.5 text-[#FA500F]" />
@@ -897,7 +897,7 @@ When reading sensor data:
             </div>
 
             {/* Tools & Capabilities Checklist */}
-            <div className="mistral-card p-3.5 space-y-3">
+            <div className="sapiens-card p-3.5 space-y-3">
               <label className="text-xs font-bold text-neutral-800 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Wrench className="w-3.5 h-3.5 text-[#FA500F]" />
@@ -978,7 +978,7 @@ When reading sensor data:
             </div>
 
             {/* Continuous Learning & Policy Promotion */}
-            <div className="mistral-card p-3.5 space-y-3 border-[#FA500F]/30 bg-[#FFF9F5]">
+            <div className="sapiens-card p-3.5 space-y-3 border-[#FA500F]/30 bg-[#FFF9F5]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-neutral-900 flex items-center gap-1.5">
                   <Brain className="w-3.5 h-3.5 text-[#FA500F]" />
@@ -1133,7 +1133,7 @@ When reading sensor data:
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono uppercase text-neutral-500 font-bold">
-                          {m.role === "user" ? "You" : m.role === "assistant" ? "Omnivore Agent" : "Hardware Event"}
+                          {m.role === "user" ? "You" : m.role === "assistant" ? "Sapiens Agent" : "Hardware Event"}
                         </span>
                       </div>
 
@@ -1218,7 +1218,7 @@ When reading sensor data:
                 <div className="p-4 rounded-xl bg-[#111319] border-4 border-neutral-800 shadow-2xl">
                   <div className="w-[300px] h-[150px] bg-[#020508] border border-cyan-900 rounded p-3 font-mono text-cyan-300 flex flex-col justify-between select-none">
                     <div className="bg-cyan-300 text-black px-1 py-0.5 text-[10px] font-bold flex justify-between">
-                      <span>OMNIVORE // S3</span>
+                      <span>SAPIENS // S3</span>
                       <span>{telemetry.doorOpen ? "ALARM" : "NOMINAL"}</span>
                     </div>
 
@@ -1246,7 +1246,7 @@ When reading sensor data:
                 </div>
 
                 <div className="text-xs text-neutral-700 font-mono bg-[#F7F5F0] p-3 rounded border border-[#E6E2DA] text-center">
-                  Firmware: <code className="text-[#FA500F] font-bold">src/omnivore_firmware.cpp</code> • Port: COM4
+                  Firmware: <code className="text-[#FA500F] font-bold">src/sapiens_firmware.cpp</code> • Port: COM4
                 </div>
               </div>
             )}
@@ -1345,19 +1345,19 @@ When reading sensor data:
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* VIEW 2: MISTRAL FRONTIER SHOWCASE (WHITE MODE)                */}
+      {/* VIEW 2: SAPIENS FRONTIER SHOWCASE (WHITE MODE)                */}
       {/* ───────────────────────────────────────────────────────────── */}
       {viewMode === "showcase" && (
         <div className="flex-1 bg-[#FAF8F5] text-[#0C0C0D] py-12 px-4 sm:px-8 lg:px-16 space-y-16 selection:bg-[#FA500F] selection:text-white">
           <div className="max-w-6xl mx-auto space-y-16">
             {/* Hero Section */}
             <div className="space-y-6">
-              <h1 className="text-4xl sm:text-6xl font-mistral-display tracking-tight text-[#0C0C0D] max-w-2xl">
+              <h1 className="text-4xl sm:text-6xl font-sapiens-display tracking-tight text-[#0C0C0D] max-w-2xl">
                 Build your frontier with Studio.
               </h1>
 
-              {/* Giant Electric Blue Banner (From Mistral Image) */}
-              <div className="mistral-card-blue p-8 sm:p-12 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              {/* Giant Electric Blue Banner (Frontier Studio Design) */}
+              <div className="sapiens-card-blue p-8 sm:p-12 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                 <div className="space-y-2 max-w-2xl">
                   <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
                     Fine-tune, evaluate, and build frontier agents on any hardware stack.
@@ -1385,10 +1385,10 @@ When reading sensor data:
               </div>
             </div>
 
-            {/* Section 1: Build (From Mistral Image) */}
+            {/* Section 1: Build (Frontier Studio Design) */}
             <div className="space-y-6">
               <div>
-                <h2 className="text-3xl sm:text-4xl font-mistral-display tracking-tight text-[#0C0C0D]">
+                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
                   Build.
                 </h2>
                 <p className="text-neutral-600 text-sm mt-1">
@@ -1397,14 +1397,14 @@ When reading sensor data:
               </div>
 
               {/* Big Vivid Orange Backdrop Card */}
-              <div className="mistral-card-orange p-6 sm:p-8 shadow-lg space-y-4">
+              <div className="sapiens-card-orange p-6 sm:p-8 shadow-lg space-y-4">
                 <div className="bg-white rounded-lg p-4 sm:p-6 border border-neutral-200 text-[#0C0C0D] space-y-4 shadow-xl">
                   <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-rose-500"></div>
                       <div className="w-3 h-3 rounded-full bg-amber-500"></div>
                       <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                      <span className="text-xs font-mono text-neutral-600 ml-2">omnivore-cold-chain.agent.ts</span>
+                      <span className="text-xs font-mono text-neutral-600 ml-2">sapiens-cold-chain.agent.ts</span>
                     </div>
                     <span className="text-[10px] font-mono text-white bg-[#FA500F] px-2 py-0.5 rounded font-bold">
                       EVE RUNTIME
@@ -1429,10 +1429,10 @@ When reading sensor data:
               </div>
             </div>
 
-            {/* Section 2: Sensors & Hardware (From Mistral Image) */}
+            {/* Section 2: Sensors & Hardware (Frontier Studio Design) */}
             <div className="space-y-6">
               <div>
-                <h2 className="text-3xl sm:text-4xl font-mistral-display tracking-tight text-[#0C0C0D]">
+                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
                   Sensors &amp; Multi-Channel.
                 </h2>
                 <p className="text-neutral-600 text-sm mt-1">
@@ -1441,7 +1441,7 @@ When reading sensor data:
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="mistral-card-blue p-6 rounded-lg text-white space-y-4 shadow-md">
+                <div className="sapiens-card-blue p-6 rounded-lg text-white space-y-4 shadow-md">
                   <h3 className="text-xl font-bold">ESP32-S3 Microcontroller</h3>
                   <p className="text-xs text-white/90 leading-relaxed">
                     Sub-second HTTP telemetry streams directly into the anomaly detection engine. If a thermal breach exceeds -10°C, the agent initiates emergency response.
@@ -1476,10 +1476,10 @@ When reading sensor data:
               </div>
             </div>
 
-            {/* Section 3: Guardrails & Trust (From Mistral Image) */}
+            {/* Section 3: Guardrails & Trust (Frontier Studio Design) */}
             <div className="space-y-6">
               <div>
-                <h2 className="text-3xl sm:text-4xl font-mistral-display tracking-tight text-[#0C0C0D]">
+                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
                   Guardrails.
                 </h2>
                 <p className="text-neutral-600 text-sm mt-1">
@@ -1520,8 +1520,8 @@ When reading sensor data:
               </div>
             </div>
 
-            {/* Bottom CTA Banner (From Mistral Image) */}
-            <div className="mistral-card-orange p-8 sm:p-12 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+            {/* Bottom CTA Banner (Frontier Studio Design) */}
+            <div className="sapiens-card-orange p-8 sm:p-12 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
               <div className="space-y-1 text-center md:text-left">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                   Build, customize and deploy AI solutions with complete control.
@@ -1548,37 +1548,42 @@ When reading sensor data:
               </div>
             </div>
 
-            {/* Footer with Iconic Mistral Pixel Logo Mark */}
+            {/* Footer with Iconic Sapiens Pixel Logo Mark */}
             <footer className="pt-12 pb-8 border-t border-[#E6E2DA] flex flex-col items-center justify-center space-y-4">
               <div className="grid grid-cols-5 gap-1 w-12 h-12">
-                <div className="bg-[#0C0C0D]"></div>
+                {/* Row 1: S top bar */}
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                {/* Row 2: S top left */}
+                <div className="bg-[#FA500F]"></div>
                 <div className="bg-transparent"></div>
                 <div className="bg-transparent"></div>
                 <div className="bg-transparent"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
                 <div className="bg-transparent"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-[#0C0C0D]"></div>
-                <div className="bg-[#0C0C0D]"></div>
+                {/* Row 3: S middle bar */}
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                {/* Row 4: S bottom right */}
                 <div className="bg-transparent"></div>
                 <div className="bg-transparent"></div>
                 <div className="bg-transparent"></div>
-                <div className="bg-[#0C0C0D]"></div>
+                <div className="bg-transparent"></div>
+                <div className="bg-[#FA500F]"></div>
+                {/* Row 5: S bottom bar */}
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
+                <div className="bg-[#FA500F]"></div>
               </div>
-              <span className="text-xs text-neutral-500 font-mono">
-                OMNIVORE AGENT • Inspired by Mistral Studio Architecture
+              <span className="text-xs text-neutral-500 font-mono font-bold tracking-wider">
+                SAPIENS AGENT • Autonomous Self-Learning &amp; Guardrail AI Platform
               </span>
             </footer>
           </div>

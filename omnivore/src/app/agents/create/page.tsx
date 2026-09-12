@@ -96,7 +96,7 @@ export default function CreateAgentPage() {
       .catch((err) => console.warn("Could not load skills catalog:", err));
   }, []);
 
-  // Dynamic Prompt Generator powered by Mistral AI
+  // Dynamic Prompt Generator powered by Sapiens Intelligence
   const handleAutoGeneratePrompt = async () => {
     if (!name.trim() && !description.trim()) {
       alert("Please enter an Agent Name or Short Mission Description first.");
@@ -162,7 +162,7 @@ export default function CreateAgentPage() {
     }
   };
 
-  // AI Auto-Draft Custom Skill using Mistral
+  // AI Auto-Draft Custom Skill using Sapiens Intelligence
   const handleAiDraftSkill = async () => {
     if (!customSkillPrompt.trim() && !description.trim()) {
       alert("Please enter a short description of what the skill should do.");
@@ -411,7 +411,7 @@ export default function CreateAgentPage() {
                 <Bot className="w-3.5 h-3.5" />
               </div>
               <span className="text-xs font-mono uppercase tracking-wider text-neutral-500 font-bold">
-                Agent Creator Studio
+                Sapiens Studio
               </span>
             </div>
           </div>
@@ -439,7 +439,7 @@ export default function CreateAgentPage() {
       <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8 space-y-8">
         {/* Title */}
         <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-mistral-display tracking-tight text-[#0C0C0D]">
+          <h1 className="text-2xl sm:text-3xl font-sapiens-display tracking-tight text-[#0C0C0D]">
             Create a New Autonomous Agent
           </h1>
           <p className="text-xs text-neutral-600">
@@ -619,10 +619,10 @@ export default function CreateAgentPage() {
                   onChange={(e) => setModel(e.target.value)}
                   className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
                 >
-                  <option value="open-mistral-nemo">open-mistral-nemo (Mistral Studio • Free Tier • Recommended)</option>
-                  <option value="codestral-latest">codestral-latest (Mistral Code &amp; Logic)</option>
-                  <option value="mistral-small-latest">mistral-small-latest (Mistral Studio)</option>
-                  <option value="google/gemini-2.0-flash-001">google/gemini-2.0-flash-001 (Fast Fallback)</option>
+                  <option value="open-mistral-nemo">sapiens-frontier-nemo (Sapiens Frontier • Free Tier • Recommended)</option>
+                  <option value="codestral-latest">sapiens-code-latest (Sapiens Code &amp; Logic)</option>
+                  <option value="mistral-small-latest">sapiens-small-latest (Sapiens Fast Tier)</option>
+                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001 (Fast Fallback)</option>
                 </select>
               </div>
 
@@ -665,7 +665,7 @@ export default function CreateAgentPage() {
                 {isGeneratingPrompt ? (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Generating with Mistral...</span>
+                    <span>Generating with Sapiens AI...</span>
                   </>
                 ) : (
                   <>
@@ -972,7 +972,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
       </main>
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* MODAL: CREATE CUSTOM SKILL (WITH MISTRAL AI AUTODRAFT)         */}
+      {/* MODAL: CREATE CUSTOM SKILL (WITH SAPIENS AI AUTODRAFT)         */}
       {/* ───────────────────────────────────────────────────────────── */}
       {showCustomSkillModal && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1003,7 +1003,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
             <div className="p-3 rounded-xl bg-[#FFF7F2] border border-[#FA500F]/30 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[#FA500F] flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" /> AI Skill Architect (Mistral)
+                  <Sparkles className="w-3.5 h-3.5" /> AI Skill Architect (Sapiens Intelligence)
                 </span>
                 <span className="text-[10px] font-mono text-neutral-500">Auto-Generates Valid Schema</span>
               </div>

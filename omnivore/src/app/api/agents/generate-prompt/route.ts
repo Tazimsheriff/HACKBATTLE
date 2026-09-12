@@ -18,7 +18,7 @@ export async function POST(req: Request) {
       ? `This agent is bound to physical hardware device: "${hardwareDeviceId}". Include appropriate hardware telemetry and actuator safety rules.`
       : `This agent is a SOFTWARE / CLOUD agent. DO NOT include microcontrollers, ESP32, or physical hardware instructions unless explicitly asked.`;
 
-    // Attempt generation with Mistral if key is available
+    // Attempt generation with frontier AI if key is available
     if (process.env.MISTRAL_API_KEY) {
       try {
         const mistralRes = await fetch("https://api.mistral.ai/v1/chat/completions", {
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: true, prompt: generatedPrompt });
         }
       } catch (err) {
-        console.warn("Mistral prompt generation fallback:", err);
+        console.warn("AI prompt generation fallback:", err);
       }
     }
 

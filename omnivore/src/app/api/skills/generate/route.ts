@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       ],
     };
 
-    // If Mistral API Key is present, generate with high-quality AI
+    // If API Key is present, generate with high-quality frontier AI
     if (process.env.MISTRAL_API_KEY) {
       try {
         const mistralRes = await fetch("https://api.mistral.ai/v1/chat/completions", {
@@ -67,7 +67,7 @@ Return ONLY valid JSON. No markdown backticks, no commentary.`,
           };
         }
       } catch (err) {
-        console.warn("Mistral skill generation fallback:", err);
+        console.warn("AI skill generation fallback:", err);
       }
     }
 

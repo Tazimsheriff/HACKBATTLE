@@ -72,7 +72,7 @@ export async function POST(
       },
     ];
 
-    // Query live Mistral Agent Studio if key is present
+    // Query live agent engine if key is present
     if (process.env.MISTRAL_API_KEY) {
       try {
         const mistralRes = await fetch("https://api.mistral.ai/v1/agents/completions", {
@@ -96,7 +96,7 @@ export async function POST(
           traceSteps[5].content = mistralData.choices[0].message.content;
         }
       } catch (mErr) {
-        console.warn("Mistral Studio agent completion fallback:", mErr);
+        console.warn("Agent completion fallback:", mErr);
       }
     }
 

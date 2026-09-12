@@ -27,8 +27,8 @@ const openrouter = new OpenAI({
     : isGoogleGeminiKey
     ? {}
     : {
-        'HTTP-Referer': 'https://omnivore-agent.vercel.app',
-        'X-Title': 'OMNIVORE AGENT Learning Engine',
+        'HTTP-Referer': 'https://sapiens-agent.vercel.app',
+        'X-Title': 'SAPIENS AGENT Learning Engine',
       },
 });
 
@@ -78,7 +78,7 @@ Experience ${i + 1}:
 - Success: ${e.success ?? 'Unknown'}
 `).join('\n---\n');
 
-  const prompt = `You are the reflection engine of an autonomous AI agent called OMNIVORE AGENT.
+  const prompt = `You are the reflection engine of an autonomous AI agent called SAPIENS AGENT.
 You are analyzing a batch of recent agent experiences to identify recurring patterns that should change future behavior.
 
 IMPORTANT DISTINCTION:

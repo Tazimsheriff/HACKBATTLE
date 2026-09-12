@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OMNIVORE AGENT | Autonomous Self-Learning & Guardrail AI Platform",
+  title: "SAPIENS AGENT | Autonomous Self-Learning & Guardrail AI Platform",
   description:
-    "AI that can Act, Learn, Adapt, and Operate within Boundaries. Anomaly detection, statistical reflection, episodic memory, and human-in-the-loop guardrails.",
+    "SAPIENS AGENT — Autonomous AI that can Act, Learn, Adapt, and Operate within Boundaries. Anomaly detection, statistical reflection, episodic memory, and human-in-the-loop guardrails.",
 };
 
 export default function RootLayout({

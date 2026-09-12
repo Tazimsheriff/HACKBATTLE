@@ -1,5 +1,5 @@
 /**
- * OMNIVORE AGENT — Multi-Channel Dispatcher
+ * SAPIENS AGENT — Multi-Channel Dispatcher
  * Dispatches notifications, critical breach alerts, and approval requests
  * to WhatsApp, Telegram, Discord, and Webhooks.
  */
@@ -40,12 +40,11 @@ export async function sendDiscordAlert(
         : msg.severity === "approval"
         ? 0xf59e0b // Amber
         : msg.severity === "warning"
-        ? 0xfa500f // Mistral Orange
+        ? 0xfa500f // Sapiens Orange
         : 0x10b981; // Green
 
     const payload = {
-      username: "OMNIVORE AGENT",
-      avatar_url: "https://mistral.ai/images/apple-touch-icon.png",
+      username: "SAPIENS AGENT",
       embeds: [
         {
           title: `${msg.severity === "critical" ? "🚨 " : msg.severity === "approval" ? "🔒 " : "📊 "}${msg.title}`,
@@ -73,7 +72,7 @@ export async function sendDiscordAlert(
           footer: {
             text: msg.approvalId
               ? `Approval Token: ${msg.approvalId} • Reply 'APPROVE' or resolve in Studio`
-              : "OMNIVORE Sentinel • Autonomous Guardian",
+              : "SAPIENS Sentinel • Autonomous Guardian",
           },
           timestamp: new Date().toISOString(),
         },
@@ -105,7 +104,7 @@ export async function sendTelegramAlert(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const icon = msg.severity === "critical" ? "🚨" : msg.severity === "approval" ? "🔒" : "❄️";
-    const text = `<b>${icon} OMNIVORE AGENT: ${msg.title}</b>\n\n${msg.body}${
+    const text = `<b>${icon} SAPIENS AGENT: ${msg.title}</b>\n\n${msg.body}${
       msg.telemetry
         ? `\n\n🌡️ <b>Temp:</b> ${msg.telemetry.temperature?.toFixed(1)}°C | 💧 <b>RH:</b> ${msg.telemetry.humidity?.toFixed(0)}%`
         : ""

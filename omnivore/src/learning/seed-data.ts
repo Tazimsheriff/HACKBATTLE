@@ -178,7 +178,7 @@ export async function seedDemoData() {
       await db.insert(approvalRequests).values(app as any);
     }
 
-    return { status: "success", message: "OMNIVORE AGENT demo state successfully seeded!" };
+    return { status: "success", message: "SAPIENS AGENT demo state successfully seeded!" };
   } catch (err) {
     console.warn("[seedDemoData] Note: Could not write directly to DB (mock mode active):", err);
     return { status: "fallback", message: "Demo data available in memory fallback" };
