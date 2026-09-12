@@ -119,12 +119,18 @@ export async function POST(
         },
       ];
     } else {
-      // Cloud / Software / Productivity / BI / Chart Agent Trace
-      const isChart = /chart|pie|bar|donut|doughnut|line graph|trend|visualiz/i.test(input) || (dbAgentInstructions && /chart/i.test(dbAgentInstructions));
-      const isDiagram = /flowchart|diagram|process map|architecture|mermaid/i.test(input) || (dbAgentInstructions && /flowchart|diagram/i.test(dbAgentInstructions));
-      const isDatabase = /database|sql|table|query|schema/i.test(input) || (dbAgentInstructions && /database/i.test(dbAgentInstructions));
-      const isSchedule = /schedule|calendar|meet|event|time|tomorrow|sync/i.test(input);
-      const isEmail = /email|inbox|digest|mail|message/i.test(input);
+      // Only trigger visual output if agent is specifically visual OR user requested visual
+      const isVisualAgent = Boolean(
+        (dbAgentName && /bl agent|chart|diagram|flowchart|visual|bi agent|database analytics/i.test(dbAgentName)) ||
+        (dbAgentInstructions && /chart|diagram|flowchart|mermaid|visualization/i.test(dbAgentInstructions))
+      );
+      const userAskedChart = /chart|pie|bar|donut|doughnut|line graph|trend/i.test(input);
+      const userAskedDiagram = /flowchart|diagram|process map|architecture|mermaid/i.test(input);
+      const isChart = userAskedChart || (isVisualAgent && /chart/i.test(input));
+      const isDiagram = userAskedDiagram || (isVisualAgent && /flowchart|diagram/i.test(input));
+      const isDatabase = /database|sql|table|query|schema/i.test(input);
+      const isSchedule = /schedule|calendar|meet|event|time|tomorrow|sync|gmeet|zoom/i.test(input);
+      const isEmail = /email|inbox|digest|mail|message|gmail/i.test(input);
 
       let chosenTool = "web_search";
       let toolInput: any = { query: input, maxResults: 3 };
@@ -180,6 +186,19 @@ export async function POST(
           `• **Schema Gate:** Verifies data types before feeding analytics.\n` +
           `• **Quarantine Path:** Routes anomalous inputs to the SAPIENS Agent Firewall.\n` +
           `• **Visual Output:** Streams verified telemetry directly into interactive charts.`;
+      } else if (isSchedule) {
+        chosenTool = "read_calendar";
+        toolInput = { action: "schedule_meeting", query: input };
+        toolOutput = { slotConfirmed: "In 30 minutes", durationMinutes: 30, meetingLink: "https://meet.google.com/new" };
+        step3Thought = "Confirmed user calendar availability. Prepared Google Meet link and drafted confirmation notice.";
+        agentResponseContent =
+          `### 📅 Google Meet Scheduled\n\n` +
+          `Your Google Meet has been prepared for **in 30 minutes**:\n\n` +
+          `• **Event:** Quick Sync\n` +
+          `• **Time:** In 30 mins (Duration: 30 minutes)\n` +
+          `• **Meeting Link:** [https://meet.google.com/new](https://meet.google.com/new)\n` +
+          `• **Status:** Ready for attendee dispatch\n\n` +
+          `Would you like me to send invite notifications to attendees via Gmail or WhatsApp?`;
       } else if (isDatabase) {
         chosenTool = "query_database_analytics";
         toolInput = { query: "SELECT category, count(*) FROM logs GROUP BY category" };
@@ -190,17 +209,6 @@ export async function POST(
           `• **Primary Index:** Validated\n` +
           `• **Security:** Read-only transaction sandbox enforced by SAPIENS Firewall.\n` +
           `• **Next Steps:** You can request **"Create a pie chart"** or **"Draw a flowchart"** to visualize this data.`;
-      } else if (isSchedule) {
-        chosenTool = "read_calendar";
-        toolInput = { action: "query_conflicts", window: "next_48_hours" };
-        toolOutput = { conflictsDetected: 1, overlappingSlots: ["14:00 - 14:30"], recommendedAlternatives: ["10:30 AM", "15:30 PM", "16:00 PM"] };
-        step3Thought = "Identified overlapping calendar commitment. Formulating optimal conflict resolution and drafting meeting adjustments.";
-        agentResponseContent =
-          `I analyzed your calendar and identified a scheduling conflict tomorrow at 2:00 PM between your Client Sync and Team Standup.\n\n` +
-          `Recommended Resolution:\n` +
-          `1. Shift internal Team Standup to 10:30 AM or 3:30 PM (all attendees are free).\n` +
-          `2. Protect the 2:00 PM slot for the external Client Presentation.\n` +
-          `3. Drafted a polite reschedule notification ready for dispatch upon your authorization.`;
       } else if (isEmail) {
         chosenTool = "read_emails";
         toolInput = { query: "is:unread label:urgent", maxResults: 5 };
@@ -249,24 +257,42 @@ export async function POST(
     }
 
     const effectiveKey = userApiKey || agentMetadata.apiKey || process.env.MISTRAL_API_KEY || process.env.GEMINI_API_KEY;
+    const isVisualAgent = Boolean(
+      (dbAgentName && /bl agent|chart|diagram|flowchart|visual|bi agent|database analytics/i.test(dbAgentName)) ||
+      (dbAgentInstructions && /chart|diagram|flowchart|mermaid|visualization/i.test(dbAgentInstructions))
+    );
+    const userRequestedVisual = /chart|pie|bar|donut|doughnut|line graph|trend|flowchart|diagram|process map|mermaid/i.test(input);
+    const shouldEnableVisuals = isVisualAgent || userRequestedVisual;
 
     // Query live agent engine (BYOK Key or Platform Tier)
     if (effectiveKey) {
       try {
-        const visualInstruction = 
-          `\nCRITICAL VISUAL OUTPUT FORMATTING INSTRUCTIONS:\n` +
-          `- If the user asks for a chart (pie chart, bar chart, line chart, donut), YOU MUST OUTPUT A VALID JSON BLOCK labeled \`\`\`chart with this structure:\n` +
-          `\`\`\`chart\n{\n  "type": "pie" | "bar" | "doughnut" | "line",\n  "title": "Clear Title",\n  "data": [\n    { "label": "Category A", "value": 450, "color": "#71ce34" },\n    { "label": "Category B", "value": 300, "color": "#3b82f6" }\n  ]\n}\n\`\`\`\n` +
-          `- If the user asks for a flowchart or diagram, YOU MUST OUTPUT A VALID MERMAID BLOCK labeled \`\`\`mermaid (e.g. graph TD ...).\n` +
-          `- NEVER write Python, matplotlib, or Jupyter code unless the user explicitly said "write python code". Always generate the visual chart data block directly so our UI renders it visually.`;
+        let systemInstruction = "";
+        let promptContent = "";
 
-        const systemInstruction = (isHardware
-          ? `You are an autonomous cold-chain sentinel. Evaluate sensor telemetry, check defrost routines, and report concisely.`
-          : (dbAgentInstructions || `You are ${dbAgentName || "an intelligent assistant"}. Help with database analytics, charting, diagrams, productivity, and communication tasks safely and accurately.`)) + visualInstruction;
+        if (isHardware) {
+          systemInstruction = `You are an autonomous cold-chain sentinel. Evaluate sensor telemetry, check defrost routines, and report concisely.`;
+          promptContent = `Task: ${input}\nTelemetry: Temp -14.2°C, Humidity 86.4%, Door Closed.\nActive Policies: ${activePoliciesMarkdown}\nSynthesize concise operational report.`;
+        } else if (shouldEnableVisuals) {
+          const visualInstruction = 
+            `\nCRITICAL VISUAL OUTPUT FORMATTING INSTRUCTIONS:\n` +
+            `- If the user asks for a chart (pie chart, bar chart, line chart, donut), YOU MUST OUTPUT A VALID JSON BLOCK labeled \`\`\`chart with this structure:\n` +
+            `\`\`\`chart\n{\n  "type": "pie" | "bar" | "doughnut" | "line",\n  "title": "Clear Title",\n  "data": [\n    { "label": "Category A", "value": 450, "color": "#71ce34" },\n    { "label": "Category B", "value": 300, "color": "#3b82f6" }\n  ]\n}\n\`\`\`\n` +
+            `- If the user asks for a flowchart or diagram, YOU MUST OUTPUT A VALID MERMAID BLOCK labeled \`\`\`mermaid (e.g. graph TD ...).\n` +
+            `- NEVER write Python, matplotlib, or Jupyter code unless the user explicitly said "write python code". Always generate the visual chart data block directly so our UI renders it visually.`;
 
-        const promptContent = isHardware
-          ? `Task: ${input}\nTelemetry: Temp -14.2°C, Humidity 86.4%, Door Closed.\nActive Policies: ${activePoliciesMarkdown}\nSynthesize concise operational report.`
-          : `System Instructions: ${systemInstruction}\nUser Request: ${input}\nProvide a concise, direct, helpful, and visual solution.`;
+          systemInstruction = (dbAgentInstructions || `You are ${dbAgentName || "a Data Visualization Specialist"}. Transform database information into actionable charts, diagrams, and flowcharts.`) + visualInstruction;
+          promptContent = `System Instructions: ${systemInstruction}\nUser Request: ${input}\nProvide a concise, direct, helpful, and visual solution.`;
+        } else {
+          // Standard assistant (e.g. GMAIL RESEARCHER, Weather agent, etc.)
+          systemInstruction = dbAgentInstructions || `You are ${dbAgentName || "an AI Assistant"}. Assist the user safely and accurately within defined guardrails.`;
+          promptContent = `System Instructions: ${systemInstruction}\n\n` +
+            `CRITICAL OUTPUT FORMATTING GUIDELINES:\n` +
+            `- You are ${dbAgentName || "an AI Assistant"}. Respond in natural, clean, professional, concise text.\n` +
+            `- DO NOT output flowcharts, mermaid diagrams, or code blocks.\n` +
+            `- Use clean markdown with clear headings, concise bullet points, and practical action items.\n\n` +
+            `User Request: ${input}`;
+        }
 
         if (effectiveKey.startsWith("AIzaSy")) {
           // Google Gemini execution

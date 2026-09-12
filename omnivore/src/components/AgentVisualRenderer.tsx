@@ -1,7 +1,19 @@
 "use client";
 
 import React, { useState } from "react";
-import { PieChart, BarChart3, GitFork, Sparkles, Check, Copy } from "lucide-react";
+import {
+  PieChart,
+  BarChart3,
+  GitFork,
+  Check,
+  Copy,
+  ArrowDown,
+  AlertTriangle,
+  Lightbulb,
+  CheckCircle2,
+  Table as TableIcon,
+  ChevronRight,
+} from "lucide-react";
 
 interface ChartItem {
   label: string;
@@ -39,10 +51,9 @@ function InteractivePieChart({ payload }: { payload: ChartPayload }) {
     return <div className="text-xs text-neutral-500 italic p-3">No valid chart data available.</div>;
   }
 
-  // Precompute slices
-  let cumulativeAngle = -Math.PI / 2; // Start at 12 o'clock
+  let cumulativeAngle = -Math.PI / 2;
   const radius = 80;
-  const innerRadius = payload.type === "pie" ? 0 : 44; // Donut style
+  const innerRadius = payload.type === "pie" ? 0 : 44;
   const center = 100;
 
   const slices = items.map((item, idx) => {
@@ -107,7 +118,6 @@ function InteractivePieChart({ payload }: { payload: ChartPayload }) {
       </div>
 
       <div className="flex flex-col sm:flex-row items-center gap-6 justify-around">
-        {/* SVG Graphic */}
         <div className="relative w-48 h-48 shrink-0">
           <svg viewBox="0 0 200 200" className="w-full h-full overflow-visible drop-shadow-xs">
             {slices.map((s) => {
@@ -129,16 +139,10 @@ function InteractivePieChart({ payload }: { payload: ChartPayload }) {
               );
             })}
             {innerRadius > 0 && (
-              <circle
-                cx={center}
-                cy={center}
-                r={innerRadius - 2}
-                className="fill-white"
-              />
+              <circle cx={center} cy={center} r={innerRadius - 2} className="fill-white" />
             )}
           </svg>
 
-          {/* Central Donut Readout */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
             {activeItem ? (
               <>
@@ -162,7 +166,6 @@ function InteractivePieChart({ payload }: { payload: ChartPayload }) {
           </div>
         </div>
 
-        {/* Legend with interactive rows */}
         <div className="flex-1 w-full space-y-1.5">
           {slices.map((s) => {
             const isHovered = hoveredIdx === s.idx;
@@ -265,14 +268,62 @@ function InteractiveBarChart({ payload }: { payload: ChartPayload }) {
 }
 
 /**
- * Interactive Flowchart & Diagram Renderer
+ * Clean Label Extractor for Flowchart Nodes
+ */
+function cleanNodeText(raw: string): string {
+  return raw
+    .replace(/^[A-Za-z0-9_]+\s*[\[\(\{]/, "")
+    .replace(/[\]\)\}]+$/, "")
+    .replace(/\*\*/g, "")
+    .replace(/\\n/g, " ")
+    .replace(/-->/g, "")
+    .trim();
+}
+
+/**
+ * Modern Interactive Flowchart & Diagram Pipeline Stepper
  */
 function FlowchartDiagram({ syntax }: { syntax: string }) {
-  // Parse simple Mermaid nodes e.g. A[Node Name] --> B{Decision} --> C[End]
-  const lines = syntax
+  // Parse nodes and transitions
+  const rawLines = syntax
     .split("\n")
     .map((l) => l.trim())
-    .filter((l) => l && !l.startsWith("graph") && !l.startsWith("flowchart"));
+    .filter((l) => l && !l.startsWith("graph") && !l.startsWith("flowchart") && !l.startsWith("subgraph") && l !== "end");
+
+  interface StepNode {
+    id: string;
+    label: string;
+    condition?: string;
+  }
+
+  const nodes: StepNode[] = [];
+  const seenLabels = new Set<string>();
+
+  for (const line of rawLines) {
+    // If line has transitions like A[...] -->|Condition| B[...] or A --> B
+    const parts = line.split(/-->|->/);
+    for (let pIdx = 0; pIdx < parts.length; pIdx++) {
+      let part = parts[pIdx].trim();
+      let condition: string | undefined;
+
+      // Check condition e.g. |Passed|
+      const condMatch = part.match(/^\|([^|]+)\|\s*(.*)/);
+      if (condMatch) {
+        condition = condMatch[1].trim();
+        part = condMatch[2].trim();
+      }
+
+      const cleanLabel = cleanNodeText(part);
+      if (cleanLabel && !seenLabels.has(cleanLabel) && cleanLabel.length > 1) {
+        seenLabels.add(cleanLabel);
+        nodes.push({
+          id: `node-${nodes.length}`,
+          label: cleanLabel,
+          condition,
+        });
+      }
+    }
+  }
 
   return (
     <div className="my-3 p-4 rounded-xl bg-white border border-[#E6E2DA] shadow-sm">
@@ -282,25 +333,281 @@ function FlowchartDiagram({ syntax }: { syntax: string }) {
             <GitFork className="w-4 h-4" />
           </div>
           <div>
-            <h4 className="text-xs font-bold text-neutral-900">Process Flowchart Diagram</h4>
-            <span className="text-[10px] text-neutral-500 font-mono">Architecture & Decision Map</span>
+            <h4 className="text-xs font-bold text-neutral-900">Process Pipeline Flowchart</h4>
+            <span className="text-[10px] text-neutral-500 font-mono">Structured Decision Sequence</span>
           </div>
         </div>
         <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
-          FLOWCHART
+          PIPELINE
         </span>
       </div>
 
-      <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] font-mono text-[11px] text-neutral-800 space-y-1.5 overflow-x-auto">
-        {lines.map((line, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span className="text-neutral-400 select-none">{i + 1}.</span>
-            <span className="font-semibold text-neutral-900">{line}</span>
+      <div className="space-y-2 p-3 bg-[#FAF8F5] rounded-xl border border-[#E6E2DA]">
+        {nodes.map((node, i) => (
+          <div key={node.id} className="space-y-2">
+            <div className="flex items-center gap-3 p-2.5 bg-white rounded-lg border border-[#E6E2DA] shadow-2xs hover:border-indigo-300 transition">
+              <div className="w-6 h-6 rounded-md bg-indigo-50 text-indigo-700 font-mono text-[11px] font-extrabold flex items-center justify-center shrink-0 border border-indigo-100">
+                {String(i + 1).padStart(2, "0")}
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-bold text-neutral-900 block truncate">
+                  {node.label}
+                </span>
+                {node.condition && (
+                  <span className="inline-block mt-0.5 px-1.5 py-0.2 text-[9px] font-mono font-bold bg-amber-50 text-amber-800 border border-amber-200 rounded">
+                    {node.condition}
+                  </span>
+                )}
+              </div>
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+            </div>
+
+            {i < nodes.length - 1 && (
+              <div className="flex items-center justify-center -my-1">
+                <div className="w-5 h-5 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center border border-indigo-200">
+                  <ArrowDown className="w-3 h-3" />
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
     </div>
   );
+}
+
+/**
+ * Renders inline markdown tokens (bold, inline code, links)
+ */
+function renderInlineMarkdown(text: string): React.ReactNode {
+  // Replace bold **text** and `code`
+  const parts: React.ReactNode[] = [];
+  const regex = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    const token = match[0];
+    if (token.startsWith("**") && token.endsWith("**")) {
+      parts.push(
+        <strong key={match.index} className="font-bold text-neutral-900">
+          {token.slice(2, -2)}
+        </strong>
+      );
+    } else if (token.startsWith("`") && token.endsWith("`")) {
+      parts.push(
+        <code
+          key={match.index}
+          className="px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-200 font-mono text-[11px] text-neutral-800"
+        >
+          {token.slice(1, -1)}
+        </code>
+      );
+    } else if (token.startsWith("[") && token.includes("](") && token.endsWith(")")) {
+      const linkMatch = token.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (linkMatch) {
+        parts.push(
+          <a
+            key={match.index}
+            href={linkMatch[2]}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline font-medium"
+          >
+            {linkMatch[1]}
+          </a>
+        );
+      } else {
+        parts.push(token);
+      }
+    } else {
+      parts.push(token);
+    }
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+}
+
+/**
+ * Beautiful Markdown Parser for Tables, Headers, Bullet Lists, and Alerts
+ */
+function FormattedMarkdownContent({ content }: { content: string }) {
+  const lines = content.split("\n");
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i].trim();
+
+    // 1. Detect Markdown Table
+    if (line.startsWith("|") && line.endsWith("|")) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+
+      if (tableLines.length >= 2) {
+        // First line: headers
+        const headerCells = tableLines[0]
+          .split("|")
+          .map((c) => c.trim())
+          .filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
+
+        // Filter out separator lines (|---|---|)
+        const dataLines = tableLines.slice(1).filter((l) => !/^\|[\s-:]+\|$/.test(l) && !l.includes("---"));
+
+        elements.push(
+          <div key={`table-${i}`} className="my-3 overflow-x-auto rounded-xl border border-[#E6E2DA] shadow-xs bg-white">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-[#FAF8F5] border-b border-[#E6E2DA]">
+                <tr>
+                  {headerCells.map((h, hIdx) => (
+                    <th
+                      key={hIdx}
+                      className="px-3 py-2.5 font-mono text-[11px] font-bold text-neutral-800 uppercase tracking-wider"
+                    >
+                      {renderInlineMarkdown(h)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E6E2DA]">
+                {dataLines.map((rowStr, rIdx) => {
+                  const cells = rowStr
+                    .split("|")
+                    .map((c) => c.trim())
+                    .filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
+                  return (
+                    <tr key={rIdx} className="hover:bg-neutral-50/70 transition-colors">
+                      {cells.map((cell, cIdx) => (
+                        <td key={cIdx} className="px-3 py-2 text-xs text-neutral-700">
+                          {renderInlineMarkdown(cell)}
+                        </td>
+                      ))}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        );
+        continue;
+      }
+    }
+
+    // 2. Headings (###, ##, #)
+    if (line.startsWith("### ")) {
+      elements.push(
+        <h3 key={`h3-${i}`} className="text-sm font-extrabold text-[#0C0C0D] mt-3 mb-1.5 flex items-center gap-1.5">
+          {renderInlineMarkdown(line.replace("### ", ""))}
+        </h3>
+      );
+      i++;
+      continue;
+    }
+    if (line.startsWith("## ")) {
+      elements.push(
+        <h2 key={`h2-${i}`} className="text-base font-extrabold text-[#0C0C0D] mt-4 mb-2">
+          {renderInlineMarkdown(line.replace("## ", ""))}
+        </h2>
+      );
+      i++;
+      continue;
+    }
+    if (line.startsWith("# ")) {
+      elements.push(
+        <h1 key={`h1-${i}`} className="text-lg font-black text-[#0C0C0D] mt-4 mb-2">
+          {renderInlineMarkdown(line.replace("# ", ""))}
+        </h1>
+      );
+      i++;
+      continue;
+    }
+
+    // 3. Alert / Callout Boxes (⚠️ Note:, 💡 Pro Tip:, etc.)
+    if (line.includes("⚠️") || line.toLowerCase().includes("note:") || line.includes("💡") || line.toLowerCase().includes("pro tip")) {
+      const isTip = line.includes("💡") || line.toLowerCase().includes("pro tip");
+      elements.push(
+        <div
+          key={`alert-${i}`}
+          className={`my-2 p-3 rounded-lg border text-xs flex items-start gap-2.5 ${
+            isTip
+              ? "bg-blue-50/60 border-blue-200/80 text-blue-900"
+              : "bg-amber-50/70 border-amber-200/80 text-amber-900"
+          }`}
+        >
+          {isTip ? (
+            <Lightbulb className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+          ) : (
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 font-medium leading-relaxed">
+            {renderInlineMarkdown(line)}
+          </div>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // 4. Bullet Points / List Items
+    if (/^[•\-\*]\s+/.test(line)) {
+      const itemText = line.replace(/^[•\-\*]\s+/, "");
+      elements.push(
+        <div key={`bullet-${i}`} className="flex items-start gap-2 text-xs text-neutral-800 my-1 pl-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#71ce34] mt-1.5 shrink-0" />
+          <span className="flex-1 leading-relaxed">{renderInlineMarkdown(itemText)}</span>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // 5. Numbered List Items (1. 2. 3.)
+    if (/^\d+\.\s+/.test(line)) {
+      const num = line.match(/^(\d+)\.\s+/)?.[1] || "";
+      const itemText = line.replace(/^\d+\.\s+/, "");
+      elements.push(
+        <div key={`num-${i}`} className="flex items-start gap-2 text-xs text-neutral-800 my-1 pl-1">
+          <span className="font-mono font-bold text-neutral-500 shrink-0 text-[11px] min-w-[16px]">
+            {num}.
+          </span>
+          <span className="flex-1 leading-relaxed">{renderInlineMarkdown(itemText)}</span>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // 6. Horizontal Rules (---)
+    if (line === "---" || line === "***") {
+      elements.push(<hr key={`hr-${i}`} className="my-3 border-t border-[#E6E2DA]" />);
+      i++;
+      continue;
+    }
+
+    // 7. Regular paragraph / text
+    if (line.length > 0) {
+      elements.push(
+        <p key={`p-${i}`} className="text-xs text-neutral-800 leading-relaxed my-1">
+          {renderInlineMarkdown(line)}
+        </p>
+      );
+    }
+
+    i++;
+  }
+
+  return <div className="space-y-1">{elements}</div>;
 }
 
 /**
@@ -317,7 +624,7 @@ export function AgentVisualRenderer({ content }: { content: string }) {
   const mermaidRegex = /```mermaid\s*([\s\S]*?)\s*```/i;
   const mermaidMatch = content.match(mermaidRegex);
 
-  // 3. Check for raw data that should be auto-visualized into a pie chart if user asked for it
+  // 3. Parse chart payload if present
   let parsedChart: ChartPayload | null = null;
   if (chartMatch && chartMatch[1]) {
     try {
@@ -355,17 +662,13 @@ export function AgentVisualRenderer({ content }: { content: string }) {
         )
       )}
 
-      {/* Mermaid Flowchart if present */}
+      {/* Mermaid Flowchart Pipeline if present */}
       {mermaidMatch && mermaidMatch[1] && (
         <FlowchartDiagram syntax={mermaidMatch[1]} />
       )}
 
-      {/* Text / Markdown Content */}
-      {cleanText && (
-        <div className="text-xs leading-relaxed text-neutral-800 space-y-1.5 whitespace-pre-wrap">
-          {cleanText}
-        </div>
-      )}
+      {/* Clean Formatted Markdown (Tables, Lists, Callouts, Bold) */}
+      {cleanText && <FormattedMarkdownContent content={cleanText} />}
     </div>
   );
 }
