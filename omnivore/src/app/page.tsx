@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import {
   Shield,
@@ -90,6 +90,37 @@ interface ApprovalItem {
   riskLevel: string;
   reason: string;
   status: string;
+  riskScore?: number;
+}
+
+interface FirewallEvent {
+  id: string;
+  toolName: string;
+  riskScore: number;
+  riskLabel: string;
+  decision: "allow" | "require_approval" | "block" | "honeypot";
+  reason: string | null;
+  createdAt: string | Date | null;
+  isHoneypot: boolean;
+}
+
+interface FirewallStats {
+  totalActions: number;
+  allowed: number;
+  requireApproval: number;
+  blocked: number;
+  honeypots: number;
+  trustScore: number;
+}
+
+interface FirewallDemoResult {
+  toolName: string;
+  riskScore: number;
+  label: string;
+  decision: string;
+  breakdown: { toolRisk: number; dataRisk: number; contextRisk: number; agentRisk: number };
+  reasons: string[];
+  summary: { icon: string; title: string; subtitle: string; color: string };
 }
 
 interface AgentItem {
@@ -296,32 +327,12 @@ export default function SapiensAgentStudio() {
   const [channelTab, setChannelTab] = useState<"whatsapp" | "discord" | "telegram">("whatsapp");
   const [channelToast, setChannelToast] = useState<string | null>(null);
 
-  // Agents list - initialized immediately from localStorage so custom agents are NEVER lost on refresh!
-  const [agentsList, setAgentsList] = useState<AgentItem[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const local = JSON.parse(localStorage.getItem("sapiens_custom_agents") || "[]");
-        if (Array.isArray(local) && local.length > 0) {
-          const defaultIds = new Set(DEFAULT_STUDIO_AGENTS.map((d) => d.id));
-          const customOnly = local.filter((a: any) => !defaultIds.has(a.id));
-          return [...customOnly, ...DEFAULT_STUDIO_AGENTS];
-        }
-      } catch (e) {}
-    }
-    return DEFAULT_STUDIO_AGENTS;
-  });
+  // Agents list — always start with the server-safe default to avoid hydration mismatches.
+  // Custom agents from localStorage are merged in a useEffect after mount.
+  const [agentsList, setAgentsList] = useState<AgentItem[]>(DEFAULT_STUDIO_AGENTS);
 
-  // Selected agent ID - initialized from URL query or localStorage so refresh preserves the user's active agent!
-  const [selectedAgentId, setSelectedAgentId] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      const queryId = urlParams.get("agentId");
-      if (queryId) return queryId;
-      const storedId = localStorage.getItem("sapiens_active_agent_id");
-      if (storedId) return storedId;
-    }
-    return "sapiens-cold-chain";
-  });
+  // Selected agent ID — always start with a stable default; localStorage/URL is applied after mount.
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("sapiens-cold-chain");
 
   // Channels Form
   const [discordWebhook, setDiscordWebhook] = useState("");
@@ -546,7 +557,7 @@ export default function SapiensAgentStudio() {
   };
 
   // Arena Right Tab State
-  const [arenaTab, setArenaTab] = useState<"chat" | "oled" | "trace" | "approvals">("chat");
+  const [arenaTab, setArenaTab] = useState<"chat" | "oled" | "trace" | "approvals" | "firewall">("chat");
 
   // Chat / Runner State
   const [chatInput, setChatInput] = useState("");
@@ -582,6 +593,15 @@ export default function SapiensAgentStudio() {
   const [trustScore, setTrustScore] = useState(92.4);
   const [isReflecting, setIsReflecting] = useState(false);
 
+  // Firewall State
+  const [firewallEvents, setFirewallEvents] = useState<FirewallEvent[]>([]);
+  const [firewallStats, setFirewallStats] = useState<FirewallStats>({
+    totalActions: 147, allowed: 132, requireApproval: 11, blocked: 4, honeypots: 2, trustScore: 92,
+  });
+  const [firewallModal, setFirewallModal] = useState<FirewallDemoResult | null>(null);
+  const [honeypotAlert, setHoneypotAlert] = useState<string | null>(null);
+  const [activeFirewallDemo, setActiveFirewallDemo] = useState<string | null>(null);
+
   const agentApprovals = useMemo(() => {
     if (isHardwareAgent) return approvals;
     return approvals.filter(
@@ -597,6 +617,67 @@ export default function SapiensAgentStudio() {
       setArenaTab("chat");
     }
   }, [isHardwareAgent, arenaTab]);
+
+  // Fetch Firewall Event Feed
+  const fetchFirewallData = async () => {
+    try {
+      const res = await fetch(`/api/firewall/events?agentId=${selectedAgentId}&limit=25`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.events?.length) setFirewallEvents(d.events);
+        if (d.stats) {
+          setFirewallStats(d.stats);
+          setTrustScore(d.stats.trustScore);
+        }
+      }
+    } catch (e) {
+      // use defaults
+    }
+  };
+
+  // Run a demo firewall scenario
+  const handleFirewallDemo = async (toolName: string, context: Record<string, any> = {}) => {
+    setActiveFirewallDemo(toolName);
+    try {
+      const res = await fetch("/api/firewall/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toolName, toolInput: context, isProduction: true, hasPII: context.hasPII, recordScope: context.recordScope }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFirewallModal(data);
+        if (data.decision === "honeypot") {
+          setHoneypotAlert(`🍯 HONEYPOT TRIGGERED — Agent tried: ${toolName}`);
+          setTimeout(() => setHoneypotAlert(null), 8000);
+        }
+        // Add to feed
+        setFirewallEvents(prev => [{
+          id: `demo-${Date.now()}`,
+          toolName,
+          riskScore: data.riskScore,
+          riskLabel: data.label,
+          decision: data.decision,
+          reason: data.reasons?.[0] ?? null,
+          createdAt: new Date(),
+          isHoneypot: data.decision === "honeypot",
+        }, ...prev.slice(0, 24)]);
+        // Update stats
+        setFirewallStats(prev => ({
+          ...prev,
+          totalActions: prev.totalActions + 1,
+          allowed: data.decision === "allow" ? prev.allowed + 1 : prev.allowed,
+          requireApproval: data.decision === "require_approval" ? prev.requireApproval + 1 : prev.requireApproval,
+          blocked: data.decision === "block" ? prev.blocked + 1 : prev.blocked,
+          honeypots: data.decision === "honeypot" ? prev.honeypots + 1 : prev.honeypots,
+        }));
+      }
+    } catch (e) {
+      console.error("Firewall demo error:", e);
+    } finally {
+      setActiveFirewallDemo(null);
+    }
+  };
 
   // Fetch initial API state
   const fetchData = async () => {
@@ -701,6 +782,36 @@ export default function SapiensAgentStudio() {
       }
     } catch (e) {
       console.warn("API state fetch fallback:", e);
+      // If the API is down, still restore custom agents + active selection from localStorage
+      try {
+        const local = JSON.parse(localStorage.getItem("sapiens_custom_agents") || "[]");
+        if (Array.isArray(local) && local.length > 0) {
+          const defaultIds = new Set(DEFAULT_STUDIO_AGENTS.map((d) => d.id));
+          const customOnly = local.filter((a: any) => !defaultIds.has(a.id));
+          const merged = [...customOnly, ...DEFAULT_STUDIO_AGENTS];
+          setAgentsList(merged);
+
+          const storedId = localStorage.getItem("sapiens_active_agent_id");
+          const urlParams = new URLSearchParams(window.location.search);
+          const queryId = urlParams.get("agentId");
+          const targetId = (queryId && merged.some((a) => a.id === queryId))
+            ? queryId
+            : (storedId && merged.some((a) => a.id === storedId))
+              ? storedId
+              : merged[0]?.id;
+
+          if (targetId) {
+            setSelectedAgentId(targetId);
+            const ag = merged.find((a) => a.id === targetId);
+            if (ag) {
+              setAgentName(ag.name);
+              setAgentDesc(ag.description || "");
+              setSelectedModel(ag.model);
+              setSystemPrompt(ag.instructions || "");
+            }
+          }
+        }
+      } catch (_) {}
     }
   };
 
@@ -713,11 +824,18 @@ export default function SapiensAgentStudio() {
       else if (storedId) setSelectedAgentId(storedId);
     }
     fetchData();
+    fetchFirewallData();
     const handleFocus = () => {
       fetchData();
+      fetchFirewallData();
     };
     window.addEventListener("focus", handleFocus);
-    return () => window.removeEventListener("focus", handleFocus);
+    // Poll firewall events every 8s
+    const firewallPoll = setInterval(fetchFirewallData, 8000);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      clearInterval(firewallPoll);
+    };
   }, []);
 
   // Send Telemetry Simulation
@@ -871,6 +989,122 @@ export default function SapiensAgentStudio() {
       {channelToast && (
         <div className="fixed top-3 right-4 z-50 px-4 py-2 rounded bg-neutral-900 text-white text-xs shadow-xl border border-neutral-700 flex items-center gap-2 animate-bounce">
           <span>{channelToast}</span>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* HONEYPOT ALERT BANNER                                        */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {honeypotAlert && (
+        <div className="fixed top-14 left-0 right-0 z-50 flex items-center justify-center px-4 py-2.5 bg-orange-600 text-white text-xs font-bold shadow-2xl animate-bounce border-b-2 border-orange-400">
+          <span className="mr-3 text-sm">🍯</span>
+          <span>{honeypotAlert}</span>
+          <span className="ml-3 text-sm">🍯</span>
+          <button onClick={() => setHoneypotAlert(null)} className="ml-6 text-orange-200 hover:text-white">
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* FIREWALL BLOCK MODAL                                         */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {firewallModal && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className={`bg-white rounded-2xl border-2 ${
+            firewallModal.decision === "honeypot" ? "border-orange-400" :
+            firewallModal.decision === "block" ? "border-rose-400" :
+            firewallModal.decision === "require_approval" ? "border-amber-400" : "border-emerald-400"
+          } max-w-lg w-full p-6 shadow-2xl space-y-5 animate-fade-in-scale`}>
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <div className={`text-2xl font-black tracking-tight ${
+                  firewallModal.decision === "honeypot" ? "text-orange-600" :
+                  firewallModal.decision === "block" ? "text-rose-600" :
+                  firewallModal.decision === "require_approval" ? "text-amber-700" : "text-emerald-700"
+                }`}>
+                  {firewallModal.summary.icon} {firewallModal.summary.title}
+                </div>
+                <div className="text-xs font-mono text-neutral-500">
+                  🔐 SAPIENS AGENT FIREWALL — Real-Time Interception
+                </div>
+              </div>
+              <button onClick={() => setFirewallModal(null)} className="text-neutral-400 hover:text-black text-lg leading-none">×</button>
+            </div>
+
+            {/* Tool + Score */}
+            <div className="p-4 rounded-xl bg-neutral-950 text-white font-mono text-sm space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400 text-xs uppercase tracking-wider">Action</span>
+                <span className="font-bold text-cyan-300">{firewallModal.toolName}()</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400 text-xs uppercase tracking-wider">Risk Score</span>
+                <span className={`text-2xl font-black ${
+                  firewallModal.riskScore >= 85 ? "text-rose-400" :
+                  firewallModal.riskScore >= 50 ? "text-amber-400" : "text-emerald-400"
+                }`}>{firewallModal.riskScore}/100</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-400 text-xs uppercase tracking-wider">Decision</span>
+                <span className={`font-bold text-sm px-2 py-0.5 rounded ${
+                  firewallModal.decision === "honeypot" ? "bg-orange-500/20 text-orange-300" :
+                  firewallModal.decision === "block" ? "bg-rose-500/20 text-rose-300" :
+                  firewallModal.decision === "require_approval" ? "bg-amber-500/20 text-amber-300" : "bg-emerald-500/20 text-emerald-300"
+                }`}>{firewallModal.summary.title}</span>
+              </div>
+            </div>
+
+            {/* Risk Breakdown */}
+            <div className="space-y-2">
+              <div className="text-xs font-bold text-neutral-600 uppercase tracking-wider">Risk Factor Breakdown</div>
+              {([
+                { label: "Tool Risk", value: firewallModal.breakdown.toolRisk, weight: "40%" },
+                { label: "Data Risk", value: firewallModal.breakdown.dataRisk, weight: "30%" },
+                { label: "Context Risk", value: firewallModal.breakdown.contextRisk, weight: "15%" },
+                { label: "Agent Risk", value: firewallModal.breakdown.agentRisk, weight: "15%" },
+              ]).map(({ label, value, weight }) => (
+                <div key={label} className="flex items-center gap-3">
+                  <span className="text-xs text-neutral-600 w-24">{label}</span>
+                  <div className="flex-1 bg-neutral-100 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        value >= 70 ? "bg-rose-500" : value >= 40 ? "bg-amber-500" : "bg-emerald-500"
+                      }`}
+                      style={{ width: `${value}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-mono font-bold text-neutral-800 w-12 text-right">{value}/100</span>
+                  <span className="text-[10px] text-neutral-400 w-8">{weight}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Reasons */}
+            <div className="space-y-1">
+              <div className="text-xs font-bold text-neutral-600 uppercase tracking-wider">Reason</div>
+              {firewallModal.reasons.slice(0, 4).map((r, i) => (
+                <div key={i} className="text-xs text-neutral-700 flex items-start gap-2">
+                  <span className="text-neutral-400 mt-0.5">•</span>
+                  <span>{r}</span>
+                </div>
+              ))}
+            </div>
+
+            {firewallModal.decision !== "allow" && (
+              <div className="p-3 rounded-lg bg-neutral-900 text-white text-xs font-mono text-center font-bold tracking-wide">
+                ⚡ The LLM cannot override this decision.
+              </div>
+            )}
+
+            <button
+              onClick={() => setFirewallModal(null)}
+              className="w-full py-2.5 rounded-lg bg-[#71ce34] hover:bg-[#62b62b] text-white font-bold text-sm transition"
+            >
+              Acknowledge
+            </button>
+          </div>
         </div>
       )}
 
@@ -1366,6 +1600,114 @@ export default function SapiensAgentStudio() {
                 ))}
               </div>
             </div>
+
+            {/* ───────────────────────────── TRUST CENTER PANEL ────── */}
+            <div className="sapiens-card p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-[#71ce34]" />
+                  Trust Center
+                </label>
+                <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                  firewallStats.trustScore >= 80 ? "bg-emerald-50 text-emerald-700 border-emerald-300" :
+                  firewallStats.trustScore >= 60 ? "bg-amber-50 text-amber-700 border-amber-300" :
+                  "bg-rose-50 text-rose-700 border-rose-300"
+                }`}>
+                  Trust: {firewallStats.trustScore}%
+                </span>
+              </div>
+
+              {/* Trust Score Bar */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[10px] font-mono">
+                  <span className="text-neutral-500">Agent Trust Score</span>
+                  <span className={`font-bold ${
+                    firewallStats.trustScore >= 80 ? "text-emerald-600" :
+                    firewallStats.trustScore >= 60 ? "text-amber-600" : "text-rose-600"
+                  }`}>{firewallStats.trustScore}%</span>
+                </div>
+                <div className="w-full bg-neutral-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${
+                      firewallStats.trustScore >= 80 ? "bg-emerald-500" :
+                      firewallStats.trustScore >= 60 ? "bg-amber-500" : "bg-rose-500"
+                    }`}
+                    style={{ width: `${firewallStats.trustScore}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Stat counters */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2 rounded bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                  <span className="text-emerald-700 font-medium flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Allowed</span>
+                  <span className="font-mono font-bold text-emerald-800">{firewallStats.allowed}</span>
+                </div>
+                <div className="p-2 rounded bg-amber-50 border border-amber-200 flex items-center justify-between">
+                  <span className="text-amber-700 font-medium flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Approval</span>
+                  <span className="font-mono font-bold text-amber-800">{firewallStats.requireApproval}</span>
+                </div>
+                <div className="p-2 rounded bg-rose-50 border border-rose-200 flex items-center justify-between">
+                  <span className="text-rose-700 font-medium flex items-center gap-1"><XCircle className="w-3 h-3" /> Blocked</span>
+                  <span className="font-mono font-bold text-rose-800">{firewallStats.blocked}</span>
+                </div>
+                <div className="p-2 rounded bg-orange-50 border border-orange-200 flex items-center justify-between">
+                  <span className="text-orange-700 font-medium">🍯 Honeypots</span>
+                  <span className="font-mono font-bold text-orange-800">{firewallStats.honeypots}</span>
+                </div>
+              </div>
+
+              {/* Firewall Demo Scenarios */}
+              <div className="pt-1 border-t border-[#EAE6DE] space-y-2">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-bold">Firewall Demo Scenarios</div>
+                <div className="grid grid-cols-1 gap-1.5 text-[11px]">
+                  <button
+                    onClick={() => handleFirewallDemo("gmail_read")}
+                    disabled={activeFirewallDemo !== null}
+                    className="text-left px-2.5 py-1.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium hover:bg-emerald-100 transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <span>✅</span> Gmail Read — Risk: 8/100 (AUTO)
+                  </button>
+                  <button
+                    onClick={() => handleFirewallDemo("stripe_charge", { amount: 50000, customerId: "cus_123", hasPII: true })}
+                    disabled={activeFirewallDemo !== null}
+                    className="text-left px-2.5 py-1.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-medium hover:bg-amber-100 transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <span>⚠️</span> Stripe ₹50k Charge — Risk: ~82/100
+                  </button>
+                  <button
+                    onClick={() => handleFirewallDemo("postgres_delete", { table: "customers", where: "*" })}
+                    disabled={activeFirewallDemo !== null}
+                    className="text-left px-2.5 py-1.5 rounded bg-rose-50 border border-rose-200 text-rose-800 font-medium hover:bg-rose-100 transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <span>🚫</span> Delete All Records — BLOCKED
+                  </button>
+                  <button
+                    onClick={() => handleFirewallDemo("bypass_guardrails")}
+                    disabled={activeFirewallDemo !== null}
+                    className="text-left px-2.5 py-1.5 rounded bg-orange-50 border border-orange-200 text-orange-800 font-bold hover:bg-orange-100 transition disabled:opacity-50 flex items-center gap-2 relative overflow-hidden"
+                  >
+                    <span>🍯</span> Try Bypass — HONEYPOT TRAP
+                    {firewallStats.honeypots > 0 && (
+                      <span className="ml-auto px-1 py-0.5 bg-orange-600 text-white text-[9px] font-mono rounded">×{firewallStats.honeypots}</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleFirewallDemo("customer_export_bulk", { recordScope: 50000, hasPII: true })}
+                    disabled={activeFirewallDemo !== null}
+                    className="text-left px-2.5 py-1.5 rounded bg-rose-50 border border-rose-200 text-rose-800 font-medium hover:bg-rose-100 transition disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <span>🚫</span> Export 50k Customer Records
+                  </button>
+                </div>
+                {activeFirewallDemo && (
+                  <div className="text-[10px] font-mono text-[#71ce34] animate-pulse flex items-center gap-1">
+                    <span className="inline-block w-2 h-2 rounded-full bg-[#71ce34] animate-ping"></span>
+                    Firewall intercepting {activeFirewallDemo}...
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* ═══════════════════════════════════════════════════════════ */}
@@ -1385,6 +1727,13 @@ export default function SapiensAgentStudio() {
                     icon: Lock,
                     badge: agentApprovals.filter((a) => a.status === "pending").length,
                   },
+                  {
+                    id: "firewall",
+                    label: "🔥 Firewall",
+                    icon: Shield,
+                    badge: firewallStats.honeypots > 0 ? firewallStats.honeypots : 0,
+                    badgeColor: "bg-orange-500",
+                  },
                 ].map((tab) => {
                   const Icon = tab.icon;
                   const active = arenaTab === tab.id;
@@ -1401,7 +1750,9 @@ export default function SapiensAgentStudio() {
                       <Icon className={`w-3.5 h-3.5 ${active ? "text-[#71ce34]" : "text-neutral-500"}`} />
                       <span className="whitespace-nowrap">{tab.label}</span>
                       {tab.badge ? (
-                        <span className="ml-1 px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-[#71ce34] text-white animate-pulse-glow">
+                        <span className={`ml-1 px-1.5 py-0.2 text-[9px] font-bold rounded-full text-white animate-pulse-glow ${
+                          (tab as any).badgeColor ?? "bg-[#71ce34]"
+                        }`}>
                           {tab.badge}
                         </span>
                       ) : null}
@@ -1788,6 +2139,124 @@ export default function SapiensAgentStudio() {
                       <p className="text-xs text-neutral-500 max-w-sm mx-auto">
                         All autonomous operations are within safe parameters. Any high-risk tool execution will automatically pause and queue here for authorization.
                       </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Content for Arena Tab 5: Firewall Event Feed */}
+            {arenaTab === "firewall" && (
+              <div className="flex-1 p-3.5 sm:p-6 overflow-y-auto space-y-4 bg-white animate-fade-in">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-600 flex items-center gap-2">
+                    <Shield className="w-3.5 h-3.5 text-[#71ce34]" />
+                    Live Firewall Event Stream
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-[10px] font-mono text-neutral-500">LIVE — auto-refreshing</span>
+                  </div>
+                </div>
+
+                {/* Trust Center Quick Stats */}
+                <div className="grid grid-cols-5 gap-2 text-xs">
+                  {[
+                    { label: "Total", value: firewallStats.totalActions, color: "bg-neutral-50 border-neutral-200 text-neutral-800" },
+                    { label: "✅ Allow", value: firewallStats.allowed, color: "bg-emerald-50 border-emerald-200 text-emerald-800" },
+                    { label: "⚠️ Hold", value: firewallStats.requireApproval, color: "bg-amber-50 border-amber-200 text-amber-800" },
+                    { label: "🚫 Block", value: firewallStats.blocked, color: "bg-rose-50 border-rose-200 text-rose-800" },
+                    { label: "🍯 Honey", value: firewallStats.honeypots, color: "bg-orange-50 border-orange-200 text-orange-800" },
+                  ].map(({ label, value, color }) => (
+                    <div key={label} className={`p-2 rounded border ${color} text-center`}>
+                      <div className="font-mono font-bold text-base">{value}</div>
+                      <div className="text-[10px] font-medium">{label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Trust Score */}
+                <div className="p-3 rounded-lg bg-neutral-950 text-white space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-neutral-300 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-[#71ce34]" /> Agent Trust Score
+                    </span>
+                    <span className={`text-2xl font-black ${
+                      firewallStats.trustScore >= 80 ? "text-emerald-400" :
+                      firewallStats.trustScore >= 60 ? "text-amber-400" : "text-rose-400"
+                    }`}>{firewallStats.trustScore}%</span>
+                  </div>
+                  <div className="w-full bg-neutral-800 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        firewallStats.trustScore >= 80 ? "bg-emerald-500" :
+                        firewallStats.trustScore >= 60 ? "bg-amber-500" : "bg-rose-500"
+                      }`}
+                      style={{ width: `${firewallStats.trustScore}%` }}
+                    />
+                  </div>
+                  <div className="text-[10px] font-mono text-neutral-400 text-center">
+                    {firewallStats.honeypots > 0
+                      ? `⚠️ ${firewallStats.honeypots} honeypot(s) detected — trust score penalized`
+                      : "✅ No unsafe behavior detected"}
+                  </div>
+                </div>
+
+                {/* Live Event Feed */}
+                <div className="space-y-2 font-mono text-xs">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 font-bold">
+                    Recent Firewall Decisions
+                  </div>
+                  {firewallEvents.map((evt) => (
+                    <div
+                      key={evt.id}
+                      className={`p-2.5 rounded-lg border flex items-center gap-3 transition-all hover-lift ${
+                        evt.decision === "honeypot"
+                          ? "bg-orange-50 border-orange-200"
+                          : evt.decision === "block"
+                          ? "bg-rose-50 border-rose-200"
+                          : evt.decision === "require_approval"
+                          ? "bg-amber-50 border-amber-200"
+                          : "bg-emerald-50 border-emerald-100"
+                      }`}
+                    >
+                      <span className="text-base shrink-0">
+                        {evt.decision === "honeypot" ? "🍯" :
+                         evt.decision === "block" ? "🚫" :
+                         evt.decision === "require_approval" ? "⚠️" : "✅"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-neutral-900 truncate">{evt.toolName}()</span>
+                          <span className={`px-1.5 py-0.2 text-[9px] rounded font-bold border ${
+                            evt.riskScore >= 85 ? "bg-rose-100 text-rose-700 border-rose-300" :
+                            evt.riskScore >= 50 ? "bg-amber-100 text-amber-700 border-amber-300" :
+                            evt.riskScore >= 25 ? "bg-orange-100 text-orange-700 border-orange-300" :
+                            "bg-emerald-100 text-emerald-700 border-emerald-300"
+                          }`}>{evt.riskScore}/100</span>
+                        </div>
+                        {evt.reason && (
+                          <div className="text-[10px] text-neutral-500 truncate mt-0.5">{evt.reason}</div>
+                        )}
+                      </div>
+                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                        evt.decision === "honeypot" ? "bg-orange-200 text-orange-800" :
+                        evt.decision === "block" ? "bg-rose-200 text-rose-800" :
+                        evt.decision === "require_approval" ? "bg-amber-200 text-amber-800" :
+                        "bg-emerald-200 text-emerald-800"
+                      }`}>
+                        {evt.decision === "require_approval" ? "HOLD" : evt.decision.toUpperCase()}
+                      </span>
+                    </div>
+                  ))}
+                  {firewallEvents.length === 0 && (
+                    <div className="p-8 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] text-center space-y-2">
+                      <Shield className="w-6 h-6 text-[#71ce34] mx-auto" />
+                      <p className="text-xs text-neutral-500">No firewall events yet. Run the demo scenarios to see the firewall in action.</p>
                     </div>
                   )}
                 </div>
