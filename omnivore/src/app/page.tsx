@@ -42,6 +42,8 @@ import {
   X,
   Copy,
   Phone,
+  Save,
+  Loader2,
 } from "lucide-react";
 import { SKILLS_SH_CATALOG } from "@/skills/registry";
 import { AgentVisualRenderer } from "@/components/AgentVisualRenderer";
@@ -519,9 +521,6 @@ export default function SapiensAgentStudio() {
       setAgentDesc(ag.description || "");
       setSelectedModel(ag.model);
       setSystemPrompt(ag.instructions || "");
-      if (typeof window !== "undefined") {
-        localStorage.setItem("sapiens_active_agent_id", ag.id);
-      }
       setMessages((prev) => {
         if (prev.length <= 1) {
           return [{ role: "assistant", content: getGreetingForAgent(ag) }];
@@ -547,6 +546,40 @@ export default function SapiensAgentStudio() {
       setSelectedModel(ag.model);
       setSystemPrompt(ag.instructions || "");
       setMessages([{ role: "assistant", content: getGreetingForAgent(ag) }]);
+    }
+  };
+
+  const [isSavingAgent, setIsSavingAgent] = useState(false);
+  const [saveToast, setSaveToast] = useState<string | null>(null);
+
+  // Permanently save any modifications to the active agent to disk
+  const handleSaveCurrentAgent = async () => {
+    setIsSavingAgent(true);
+    try {
+      const updatedAgent = {
+        ...currentAgent,
+        name: agentName,
+        description: agentDesc,
+        goal: agentDesc || agentName,
+        instructions: systemPrompt,
+        model: selectedModel,
+      };
+
+      const res = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedAgent),
+      });
+
+      if (res.ok) {
+        setSaveToast("Saved!");
+        setTimeout(() => setSaveToast(null), 2500);
+        fetchData();
+      }
+    } catch (e) {
+      console.error("Save error:", e);
+    } finally {
+      setIsSavingAgent(false);
     }
   };
 
@@ -967,11 +1000,36 @@ export default function SapiensAgentStudio() {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      const queryId = urlParams.get("agentId");
-      const storedId = localStorage.getItem("sapiens_active_agent_id");
-      if (queryId) setSelectedAgentId(queryId);
-      else if (storedId) setSelectedAgentId(storedId);
+      try {
+        const local = JSON.parse(localStorage.getItem("sapiens_custom_agents") || "[]");
+        let mergedList = DEFAULT_STUDIO_AGENTS;
+        if (Array.isArray(local) && local.length > 0) {
+          const defaultIds = new Set(DEFAULT_STUDIO_AGENTS.map((d) => d.id));
+          const customOnly = local.filter((a: any) => !defaultIds.has(a.id));
+          mergedList = [...customOnly, ...DEFAULT_STUDIO_AGENTS];
+          setAgentsList(mergedList);
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const queryId = urlParams.get("agentId");
+        const storedId = localStorage.getItem("sapiens_active_agent_id");
+        const targetId = (queryId && mergedList.some((a) => a.id === queryId))
+          ? queryId
+          : (storedId && mergedList.some((a) => a.id === storedId))
+            ? storedId
+            : mergedList[0]?.id;
+
+        if (targetId) {
+          setSelectedAgentId(targetId);
+          const ag = mergedList.find((a) => a.id === targetId);
+          if (ag) {
+            setAgentName(ag.name);
+            setAgentDesc(ag.description || "");
+            setSelectedModel(ag.model);
+            setSystemPrompt(ag.instructions || "");
+          }
+        }
+      } catch (_) {}
     }
     fetchData();
     fetchFirewallData();
@@ -1693,6 +1751,19 @@ export default function SapiensAgentStudio() {
                   <Bot className="w-3.5 h-3.5" /> Agent Blueprint
                 </span>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSaveCurrentAgent}
+                    disabled={isSavingAgent}
+                    className="px-2.5 py-0.5 text-[10px] font-bold text-white bg-[#71ce34] hover:bg-[#62b62b] disabled:opacity-50 rounded flex items-center gap-1 transition shadow-2xs interactive-btn"
+                    title="Permanently save all edits to disk"
+                  >
+                    {isSavingAgent ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Save className="w-3 h-3" />
+                    )}
+                    <span>{saveToast || (isSavingAgent ? "Saving..." : "Save Changes")}</span>
+                  </button>
                   <button
                     onClick={() => setShowChannelsModal(true)}
                     className="px-2 py-0.5 text-[10px] font-bold text-[#0066FF] bg-blue-50 border border-blue-200 rounded flex items-center gap-1 hover:bg-blue-100 transition"

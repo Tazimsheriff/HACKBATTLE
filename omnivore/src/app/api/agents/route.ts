@@ -58,8 +58,9 @@ export async function POST(req: Request) {
       }
     }
 
+    const agentId = body.id || uuidv4();
     const newAgent: AgentRecord = {
-      id: uuidv4(),
+      id: agentId,
       name,
       description,
       goal: goal || name,
@@ -76,9 +77,30 @@ export async function POST(req: Request) {
     // 1. Permanently persist to data/agents.json on disk
     saveDiskAgent(newAgent);
 
-    // 2. Also try DB insert if available
+    // 2. Also try DB upsert if available
     try {
-      await db.insert(agents).values(newAgent as any);
+      await db.insert(agents).values({
+        id: newAgent.id,
+        name: newAgent.name,
+        description: newAgent.description,
+        goal: newAgent.goal,
+        instructions: newAgent.instructions,
+        model: newAgent.model,
+        tools: newAgent.tools,
+        status: newAgent.status,
+      } as any).onConflictDoUpdate({
+        target: agents.id,
+        set: {
+          name: newAgent.name,
+          description: newAgent.description,
+          goal: newAgent.goal,
+          instructions: newAgent.instructions,
+          model: newAgent.model,
+          tools: newAgent.tools,
+          status: newAgent.status,
+          updatedAt: new Date(),
+        },
+      });
     } catch (dbErr) {
       // Disk storage is primary fallback
     }

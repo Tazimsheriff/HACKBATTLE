@@ -107,26 +107,32 @@ export async function getAllAgents(): Promise<AgentRecord[]> {
     mergedMap.set(ag.id, ag);
   }
 
-  // 3. Overlay DB agents if postgres is running
-  try {
-    const dbAgents = await db.select().from(agents).orderBy(desc(agents.createdAt));
-    if (Array.isArray(dbAgents)) {
-      for (const dba of dbAgents) {
-        mergedMap.set(dba.id, {
-          id: dba.id,
-          name: dba.name,
-          description: dba.description || "",
-          goal: dba.goal || "",
-          instructions: dba.instructions || "",
-          model: dba.model,
-          status: (dba.status as "active" | "paused" | "archived") || "active",
-          tools: Array.isArray(dba.tools) ? (dba.tools as string[]) : [],
-          metadata: (dba as any).metadata || {},
-        });
+  // 3. Overlay DB agents if postgres is running and responsive
+  if (process.env.DATABASE_URL) {
+    try {
+      const dbPromise = db.select().from(agents).orderBy(desc(agents.createdAt));
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("DB query timeout")), 600)
+      );
+      const dbAgents = (await Promise.race([dbPromise, timeoutPromise])) as any[];
+      if (Array.isArray(dbAgents)) {
+        for (const dba of dbAgents) {
+          mergedMap.set(dba.id, {
+            id: dba.id,
+            name: dba.name,
+            description: dba.description || "",
+            goal: dba.goal || "",
+            instructions: dba.instructions || "",
+            model: dba.model,
+            status: (dba.status as "active" | "paused" | "archived") || "active",
+            tools: Array.isArray(dba.tools) ? (dba.tools as string[]) : [],
+            metadata: (dba as any).metadata || {},
+          });
+        }
       }
+    } catch {
+      // Instant disk fallback
     }
-  } catch {
-    // Database fallback
   }
 
   // Return disk/custom agents first, then built-in defaults
