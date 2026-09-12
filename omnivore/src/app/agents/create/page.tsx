@@ -170,8 +170,11 @@ export default function CreateAgentPage() {
 
       const data = await res.json();
       if (data.matchedIds?.length) {
-        const unionTools = Array.from(new Set([...selectedTools, ...data.matchedIds]));
-        setSelectedTools(unionTools);
+        const keepMemory = selectedTools.includes("query_memory");
+        const newTools = Array.from(
+          new Set([...(keepMemory ? ["query_memory"] : []), ...data.matchedIds])
+        );
+        setSelectedTools(newTools);
         setSkillsToast(`Matched ${data.matchedIds.length} skills from skills.sh for this mission!`);
         setTimeout(() => setSkillsToast(null), 5000);
       }

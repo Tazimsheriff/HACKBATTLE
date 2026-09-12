@@ -193,10 +193,66 @@ export const SKILLS_SH_CATALOG: AgentSkill[] = [
       { name: "selector", type: "string", required: false, description: "CSS selector to target" },
     ],
   },
+  {
+    id: "weather_forecast",
+    name: "Weather & Forecast Lookup",
+    functionName: "get_weather_forecast()",
+    description: "Query real-time weather conditions, forecasts, precipitation, temperature, and storm alerts for any city or location.",
+    category: "search",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/weather-forecast",
+    parameters: [
+      { name: "location", type: "string", required: true, description: "City name, zip code, or latitude/longitude coordinates" },
+      { name: "days", type: "number", required: false, description: "Forecast days (default 1, up to 7)" },
+    ],
+  },
 
   // ─────────────────────────────────────────────────────────────
   // 3. COMMUNICATIONS & ALERTING
   // ─────────────────────────────────────────────────────────────
+  {
+    id: "whatsapp_send_message",
+    name: "WhatsApp Direct Dispatcher",
+    functionName: "send_whatsapp_message()",
+    description: "Dispatch direct WhatsApp messages, alerts, and markdown updates to mobile numbers via WhatsApp API.",
+    category: "communications",
+    risk: "MEDIUM",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/whatsapp-dispatcher",
+    parameters: [
+      { name: "recipient", type: "string", required: true, description: "Phone number with country code e.g. '+1234567890'" },
+      { name: "message", type: "string", required: true, description: "Text or markdown message body" },
+    ],
+  },
+  {
+    id: "telegram_send_message",
+    name: "Telegram Bot Dispatcher",
+    functionName: "send_telegram_message()",
+    description: "Deliver instant notifications, summaries, and formatted markdown alerts to Telegram chats or channels via Bot API.",
+    category: "communications",
+    risk: "MEDIUM",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/telegram-dispatcher",
+    parameters: [
+      { name: "chatId", type: "string", required: true, description: "Telegram chat ID or @channelusername" },
+      { name: "message", type: "string", required: true, description: "Markdown formatted alert text" },
+    ],
+  },
+  {
+    id: "discord_send_message",
+    name: "Discord Webhook Dispatcher",
+    functionName: "send_discord_message()",
+    description: "Send rich embed messages, summaries, and notifications to Discord channels via webhook.",
+    category: "communications",
+    risk: "MEDIUM",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/discord-dispatcher",
+    parameters: [
+      { name: "channel", type: "string", required: false, description: "Target channel name or webhook" },
+      { name: "message", type: "string", required: true, description: "Message content or embed payload" },
+    ],
+  },
   {
     id: "send_notification",
     name: "Multi-Channel Broadcast",
