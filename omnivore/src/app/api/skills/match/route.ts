@@ -22,20 +22,23 @@ export async function POST(req: Request) {
       ).toLowerCase();
 
       // Check key domain terms
-      if (query.includes("mail") || query.includes("gmail") || query.includes("inbox")) {
-        if (haystack.includes("mail") || haystack.includes("gmail") || haystack.includes("digest")) score += 10;
+      if (query.includes("mail") || query.includes("gmail") || query.includes("inbox") || query.includes("slack") || query.includes("notion") || query.includes("jira")) {
+        if (haystack.includes("mail") || haystack.includes("gmail") || haystack.includes("digest") || haystack.includes("slack") || haystack.includes("notion") || haystack.includes("jira")) score += 10;
       }
-      if (query.includes("search") || query.includes("research") || query.includes("web") || query.includes("find")) {
-        if (haystack.includes("search") || haystack.includes("web") || haystack.includes("document")) score += 10;
+      if (query.includes("search") || query.includes("research") || query.includes("web") || query.includes("find") || query.includes("news")) {
+        if (haystack.includes("search") || haystack.includes("web") || haystack.includes("document") || haystack.includes("news") || haystack.includes("scraper")) score += 10;
       }
-      if (query.includes("devops") || query.includes("github") || query.includes("deploy") || query.includes("pr")) {
-        if (haystack.includes("github") || haystack.includes("database")) score += 10;
+      if (query.includes("devops") || query.includes("github") || query.includes("deploy") || query.includes("docker") || query.includes("cloud") || query.includes("aws")) {
+        if (haystack.includes("github") || haystack.includes("docker") || haystack.includes("cloudwatch") || haystack.includes("ssh") || haystack.includes("ssl")) score += 10;
       }
-      if (query.includes("sensor") || query.includes("temp") || query.includes("esp32") || query.includes("iot") || query.includes("cold")) {
-        if (haystack.includes("sensor") || haystack.includes("telemetry") || haystack.includes("relay")) score += 10;
+      if (query.includes("sensor") || query.includes("temp") || query.includes("esp32") || query.includes("iot") || query.includes("cold") || query.includes("hardware") || query.includes("camera") || query.includes("mqtt") || query.includes("gps")) {
+        if (haystack.includes("sensor") || haystack.includes("telemetry") || haystack.includes("relay") || haystack.includes("mqtt") || haystack.includes("modbus") || haystack.includes("camera") || haystack.includes("geofence")) score += 10;
       }
-      if (query.includes("notify") || query.includes("alert") || query.includes("telegram") || query.includes("whatsapp")) {
-        if (haystack.includes("notification") || haystack.includes("broadcast")) score += 8;
+      if (query.includes("notify") || query.includes("alert") || query.includes("telegram") || query.includes("whatsapp") || query.includes("sms") || query.includes("call") || query.includes("pagerduty")) {
+        if (haystack.includes("notification") || haystack.includes("broadcast") || haystack.includes("twilio") || haystack.includes("pagerduty") || haystack.includes("slack")) score += 8;
+      }
+      if (query.includes("data") || query.includes("database") || query.includes("sql") || query.includes("vector") || query.includes("stripe") || query.includes("csv")) {
+        if (haystack.includes("database") || haystack.includes("vector") || haystack.includes("tabular") || haystack.includes("stripe")) score += 8;
       }
 
       // Memory is universally valuable

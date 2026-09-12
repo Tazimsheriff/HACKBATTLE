@@ -17,7 +17,9 @@ export interface AgentSkill {
 }
 
 export const SKILLS_SH_CATALOG: AgentSkill[] = [
-  // Productivity & Email
+  // ─────────────────────────────────────────────────────────────
+  // 1. PRODUCTIVITY & APPS
+  // ─────────────────────────────────────────────────────────────
   {
     id: "gmail_read_inbox",
     name: "Gmail Inbox Reader",
@@ -60,8 +62,68 @@ export const SKILLS_SH_CATALOG: AgentSkill[] = [
       { name: "timeMax", type: "string", required: false, description: "End time filter (ISO string)" },
     ],
   },
+  {
+    id: "slack_post_message",
+    name: "Slack Channel Dispatcher",
+    functionName: "post_slack_message()",
+    description: "Dispatch rich alert cards, thread replies, and interactive blocks to targeted Slack channels.",
+    category: "productivity",
+    risk: "MEDIUM",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/slack-dispatcher",
+    parameters: [
+      { name: "channel", type: "string", required: true, description: "Slack channel ID or #name" },
+      { name: "message", type: "string", required: true, description: "Formatted markdown text or BlockKit payload" },
+    ],
+  },
+  {
+    id: "notion_update_page",
+    name: "Notion Workspace Sync",
+    functionName: "update_notion_page()",
+    description: "Append structured research notes, action items, or database records into designated Notion pages.",
+    category: "productivity",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/notion-sync",
+    parameters: [
+      { name: "pageId", type: "string", required: true, description: "Notion Target Page or Database ID" },
+      { name: "content", type: "string", required: true, description: "Markdown text or properties to append" },
+    ],
+  },
+  {
+    id: "jira_create_issue",
+    name: "Jira Issue & Incident Creator",
+    functionName: "create_jira_issue()",
+    description: "Create, assign, or escalate engineering incident tickets and bug reports on Jira Cloud.",
+    category: "productivity",
+    risk: "MEDIUM",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/jira-issues",
+    parameters: [
+      { name: "projectKey", type: "string", required: true, description: "Jira Project Key e.g. 'OPS' or 'ENG'" },
+      { name: "summary", type: "string", required: true, description: "Issue headline summary" },
+      { name: "priority", type: "string", required: false, description: "Critical | High | Medium | Low" },
+    ],
+  },
+  {
+    id: "google_drive_export",
+    name: "Google Drive File Sync",
+    functionName: "export_to_drive()",
+    description: "Upload synthesized reports, raw datasets, or markdown summaries to Google Drive.",
+    category: "productivity",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/google-drive",
+    parameters: [
+      { name: "folderId", type: "string", required: true, description: "Google Drive parent folder ID" },
+      { name: "fileName", type: "string", required: true, description: "Name of the file to save" },
+      { name: "fileContent", type: "string", required: true, description: "Content body to write" },
+    ],
+  },
 
-  // Search & Web Intelligence
+  // ─────────────────────────────────────────────────────────────
+  // 2. SEARCH & WEB INTELLIGENCE
+  // ─────────────────────────────────────────────────────────────
   {
     id: "web_search",
     name: "Web Search & Extraction",
@@ -89,8 +151,52 @@ export const SKILLS_SH_CATALOG: AgentSkill[] = [
       { name: "fileUrl", type: "string", required: true, description: "URL or local path to document" },
     ],
   },
+  {
+    id: "serp_news_monitor",
+    name: "Live News & SERP Feed",
+    functionName: "fetch_live_news()",
+    description: "Stream breaking domain news, geopolitical updates, and industry press releases via SERP / RSS.",
+    category: "search",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/live-news",
+    parameters: [
+      { name: "topic", type: "string", required: true, description: "Industry or topic keyword e.g. 'cold chain logistics'" },
+      { name: "timeframe", type: "string", required: false, description: "Past 24h, past week, or latest" },
+    ],
+  },
+  {
+    id: "github_code_search",
+    name: "GitHub Codebase Explorer",
+    functionName: "search_github_code()",
+    description: "Search public or private repositories, inspect source files, commit histories, and AST diffs.",
+    category: "search",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/github-search",
+    parameters: [
+      { name: "query", type: "string", required: true, description: "Search pattern, symbol, or filename" },
+      { name: "repo", type: "string", required: false, description: "Optional scoped repository 'org/repo'" },
+    ],
+  },
+  {
+    id: "web_scraper_dynamic",
+    name: "Dynamic Browser Scraper",
+    functionName: "scrape_dynamic_webpage()",
+    description: "Headless browser DOM extraction for JavaScript-rendered SPAs, extracting selectors and clean text.",
+    category: "search",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/browser-scraper",
+    parameters: [
+      { name: "url", type: "string", required: true, description: "Webpage URL to inspect" },
+      { name: "selector", type: "string", required: false, description: "CSS selector to target" },
+    ],
+  },
 
-  // Communications & Alerting
+  // ─────────────────────────────────────────────────────────────
+  // 3. COMMUNICATIONS & ALERTING
+  // ─────────────────────────────────────────────────────────────
   {
     id: "send_notification",
     name: "Multi-Channel Broadcast",
@@ -106,8 +212,38 @@ export const SKILLS_SH_CATALOG: AgentSkill[] = [
       { name: "priority", type: "string", required: false, description: "high | normal | low" },
     ],
   },
+  {
+    id: "twilio_sms_voice",
+    name: "Twilio SMS & Voice Escalation",
+    functionName: "dispatch_urgent_call()",
+    description: "Trigger outbound phone calls or SMS text messages for Tier-1 critical emergency breaches.",
+    category: "communications",
+    risk: "HIGH",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/twilio-alerts",
+    parameters: [
+      { name: "phoneNumber", type: "string", required: true, description: "Recipient mobile phone number (E.164)" },
+      { name: "message", type: "string", required: true, description: "Voice synthesis text or SMS body" },
+    ],
+  },
+  {
+    id: "pagerduty_trigger_incident",
+    name: "PagerDuty Incident Escalation",
+    functionName: "trigger_pagerduty()",
+    description: "Escalate critical hardware or medical cold-chain temperature breaches directly to on-call duty engineers.",
+    category: "communications",
+    risk: "HIGH",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/pagerduty",
+    parameters: [
+      { name: "summary", type: "string", required: true, description: "Incident description" },
+      { name: "severity", type: "string", required: true, description: "critical | error | warning | info" },
+    ],
+  },
 
-  // Memory & Continuous Learning
+  // ─────────────────────────────────────────────────────────────
+  // 4. DATA, ANALYTICS & MEMORY
+  // ─────────────────────────────────────────────────────────────
   {
     id: "query_memory",
     name: "Episodic Memory Query",
@@ -121,8 +257,6 @@ export const SKILLS_SH_CATALOG: AgentSkill[] = [
       { name: "category", type: "string", required: false, description: "Filter category" },
     ],
   },
-
-  // Data & DevOps
   {
     id: "database_query",
     name: "Database Query Engine",
@@ -138,6 +272,52 @@ export const SKILLS_SH_CATALOG: AgentSkill[] = [
     ],
   },
   {
+    id: "vector_semantic_search",
+    name: "Vector Semantic Embeddings",
+    functionName: "query_vector_db()",
+    description: "Execute cosine similarity search across pgvector, Pinecone, or Chroma vector embeddings.",
+    category: "data",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/vector-search",
+    parameters: [
+      { name: "prompt", type: "string", required: true, description: "Input sentence or query to vectorize" },
+      { name: "topK", type: "number", required: false, description: "Number of nearest neighbors to return" },
+    ],
+  },
+  {
+    id: "csv_tabular_analyzer",
+    name: "CSV & Tabular Data Analyzer",
+    functionName: "analyze_tabular_data()",
+    description: "Perform automated statistical summaries, outlier anomaly detection, and pivot metrics on CSV data.",
+    category: "data",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/csv-analyzer",
+    parameters: [
+      { name: "csvData", type: "string", required: true, description: "Raw CSV string or cloud file URL" },
+      { name: "analysisType", type: "string", required: false, description: "summary | outliers | correlation" },
+    ],
+  },
+  {
+    id: "stripe_payment_check",
+    name: "Stripe Billing & Invoices",
+    functionName: "query_stripe_charges()",
+    description: "Inspect customer transaction histories, dispute flags, and invoice statuses via Stripe API.",
+    category: "data",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/stripe-billing",
+    parameters: [
+      { name: "customerId", type: "string", required: true, description: "Stripe customer ID (cus_...)" },
+      { name: "limit", type: "number", required: false, description: "Number of recent invoices" },
+    ],
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // 5. DEVOPS & CLOUD INFRASTRUCTURE
+  // ─────────────────────────────────────────────────────────────
+  {
     id: "github_issue_monitor",
     name: "GitHub Issues & PR Watcher",
     functionName: "github_monitor()",
@@ -151,8 +331,65 @@ export const SKILLS_SH_CATALOG: AgentSkill[] = [
       { name: "event", type: "string", required: false, description: "issues | pulls | runs" },
     ],
   },
+  {
+    id: "docker_container_ops",
+    name: "Docker Container Inspector",
+    functionName: "inspect_docker_containers()",
+    description: "Query Docker daemon for container health, inspect logs, and safely restart halted worker services.",
+    category: "devops",
+    risk: "MEDIUM",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/docker-ops",
+    parameters: [
+      { name: "containerName", type: "string", required: true, description: "Target container name or ID" },
+      { name: "action", type: "string", required: false, description: "status | logs | restart" },
+    ],
+  },
+  {
+    id: "aws_cloudwatch_query",
+    name: "AWS CloudWatch Metrics",
+    functionName: "query_cloudwatch_metrics()",
+    description: "Pull AWS Lambda, RDS, and EC2 latency, CPU utilization, and error telemetry.",
+    category: "devops",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/aws-cloudwatch",
+    parameters: [
+      { name: "namespace", type: "string", required: true, description: "AWS namespace e.g. 'AWS/Lambda'" },
+      { name: "metricName", type: "string", required: true, description: "Metric e.g. 'Duration' or 'Errors'" },
+    ],
+  },
+  {
+    id: "ssh_remote_diagnostics",
+    name: "SSH Remote Diagnostics",
+    functionName: "run_ssh_diagnostics()",
+    description: "Securely execute read-only diagnostic commands on remote Linux servers over SSH.",
+    category: "devops",
+    risk: "MEDIUM",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/ssh-diagnostics",
+    parameters: [
+      { name: "host", type: "string", required: true, description: "Remote hostname or IP address" },
+      { name: "command", type: "string", required: true, description: "Read-only command (e.g. 'df -h', 'uptime')" },
+    ],
+  },
+  {
+    id: "ssl_cert_domain_health",
+    name: "SSL Certificate & DNS Health",
+    functionName: "check_ssl_and_dns()",
+    description: "Inspect domain DNS records, SSL/TLS certificate expiry, and HTTP latency.",
+    category: "devops",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/dns-ssl-health",
+    parameters: [
+      { name: "domain", type: "string", required: true, description: "Target domain name e.g. 'example.com'" },
+    ],
+  },
 
-  // Hardware & IoT (Optional)
+  // ─────────────────────────────────────────────────────────────
+  // 6. HARDWARE & EDGE IOT
+  // ─────────────────────────────────────────────────────────────
   {
     id: "get_sensor_data",
     name: "IoT Microcontroller Telemetry",
@@ -179,6 +416,63 @@ export const SKILLS_SH_CATALOG: AgentSkill[] = [
     parameters: [
       { name: "relayPin", type: "string", required: true, description: "GPIO pin or actuator ID" },
       { name: "reason", type: "string", required: true, description: "Audit rationale for emergency cutoff" },
+    ],
+  },
+  {
+    id: "mqtt_publish_telemetry",
+    name: "MQTT Broker Telemetry Publisher",
+    functionName: "publish_mqtt()",
+    description: "Publish sensor telemetry payloads or actuation triggers to industrial MQTT brokers.",
+    category: "iot",
+    risk: "MEDIUM",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/mqtt-publisher",
+    parameters: [
+      { name: "topic", type: "string", required: true, description: "MQTT topic path e.g. 'telemetry/cold-chain'" },
+      { name: "payload", type: "string", required: true, description: "JSON stringified telemetry payload" },
+    ],
+  },
+  {
+    id: "modbus_plc_reader",
+    name: "Industrial Modbus PLC Reader",
+    functionName: "read_modbus_registers()",
+    description: "Read industrial PLC holding registers, flow meters, and HVAC controllers over Modbus TCP/RTU.",
+    category: "iot",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/modbus-plc",
+    parameters: [
+      { name: "unitId", type: "number", required: true, description: "Modbus slave unit ID" },
+      { name: "registerAddress", type: "number", required: true, description: "Register offset address" },
+      { name: "count", type: "number", required: false, description: "Number of registers to read" },
+    ],
+  },
+  {
+    id: "esp32_cam_ocr",
+    name: "ESP32-CAM Visual Inspection",
+    functionName: "capture_camera_ocr()",
+    description: "Capture frame from ESP32-CAM or RTSP IP camera to perform optical character recognition or seal inspection.",
+    category: "iot",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/esp32-cam-ocr",
+    parameters: [
+      { name: "cameraEndpoint", type: "string", required: true, description: "HTTP or RTSP streaming endpoint" },
+      { name: "inspectionTarget", type: "string", required: false, description: "digital_gauge | container_seal | barcode" },
+    ],
+  },
+  {
+    id: "gps_geofence_monitor",
+    name: "GPS Geofence Tracking Unit",
+    functionName: "verify_gps_geofence()",
+    description: "Read real-time coordinates from asset tracker and verify cold-chain vehicle perimeter compliance.",
+    category: "iot",
+    risk: "LOW",
+    source: "skills.sh",
+    sourceUrl: "https://skills.sh/skills/gps-geofence",
+    parameters: [
+      { name: "assetId", type: "string", required: true, description: "Asset or vehicle identifier" },
+      { name: "maxAllowedRadiusKm", type: "number", required: false, description: "Max perimeter radius in km" },
     ],
   },
 ];

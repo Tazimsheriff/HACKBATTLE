@@ -885,10 +885,11 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
                 {[
                   { id: "all", label: "All Skills" },
-                  { id: "productivity", label: "Productivity (Gmail)" },
+                  { id: "productivity", label: "Productivity & Workspace" },
                   { id: "search", label: "Search & Web" },
+                  { id: "communications", label: "Alerts & Channels" },
                   { id: "data", label: "Data & Memory" },
-                  { id: "devops", label: "DevOps" },
+                  { id: "devops", label: "Cloud & DevOps" },
                   { id: "iot", label: "Hardware & IoT" },
                   { id: "custom", label: "Custom" },
                 ].map((cat) => (
