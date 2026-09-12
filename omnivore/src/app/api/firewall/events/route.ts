@@ -29,22 +29,29 @@ export async function GET(req: Request) {
       getFirewallStats(agentId).catch(() => null),
     ]);
 
-    // Fallback demo data if DB is empty
+    // Compute dynamic stats strictly from real runtime and persistent DB events
+    const allEvents = [...RUNTIME_FIREWALL_EVENTS, ...events];
+    const allowed = allEvents.filter((e) => e.decision === "allow").length;
+    const requireApproval = allEvents.filter((e) => e.decision === "require_approval").length;
+    const blocked = allEvents.filter((e) => e.decision === "block").length;
+    const honeypots = allEvents.filter((e) => e.decision === "honeypot" || e.isHoneypot).length;
+    const totalActions = allEvents.length;
+    const trustScore = totalActions === 0
+      ? 100
+      : Math.max(10, Math.min(100, Math.round(100 - (blocked * 12) - (honeypots * 25))));
+
     const effectiveStats = (stats && stats.totalActions > 0)
       ? stats
       : {
-          totalActions: 147 + RUNTIME_FIREWALL_EVENTS.length,
-          allowed: 132,
-          requireApproval: 11,
-          blocked: 4 + RUNTIME_FIREWALL_EVENTS.filter((e) => e.decision === "block").length,
-          honeypots: 2 + RUNTIME_FIREWALL_EVENTS.filter((e) => e.decision === "honeypot").length,
-          trustScore: Math.max(70, 92 - RUNTIME_FIREWALL_EVENTS.length * 2),
+          totalActions,
+          allowed,
+          requireApproval,
+          blocked,
+          honeypots,
+          trustScore,
         };
 
-    const effectiveEvents = [
-      ...RUNTIME_FIREWALL_EVENTS,
-      ...(events.length > 0 ? events : DEMO_FIREWALL_EVENTS),
-    ].slice(0, limit);
+    const effectiveEvents = allEvents.slice(0, limit);
 
     return NextResponse.json({
       success: true,
@@ -52,26 +59,24 @@ export async function GET(req: Request) {
       events: effectiveEvents,
     });
   } catch (error) {
-    return NextResponse.json(
-      {
-        success: true,
-        stats: {
-          totalActions: 147,
-          allowed: 132,
-          requireApproval: 11,
-          blocked: 4,
-          honeypots: 2,
-          trustScore: 92,
-        },
-        events: DEMO_FIREWALL_EVENTS,
-      }
-    );
+    return NextResponse.json({
+      success: true,
+      stats: {
+        totalActions: 0,
+        allowed: 0,
+        requireApproval: 0,
+        blocked: 0,
+        honeypots: 0,
+        trustScore: 100,
+      },
+      events: [],
+    });
   }
 }
 
 /**
  * POST /api/firewall/events
- * Trigger a demo firewall event (for the hackathon demo scenarios).
+ * Trigger a live firewall action/event and record it in real time.
  */
 export async function POST(req: Request) {
   try {
@@ -101,103 +106,35 @@ export async function POST(req: Request) {
 
     const result = await runGuardrail({
       agentId,
-      runId: `demo-${Date.now()}`,
       toolName,
       toolInput: context,
+      isProduction: context.isProduction ?? true,
       recordScope: context.recordScope,
       hasPII: context.hasPII,
-      isProduction: true,
     });
 
-    return NextResponse.json({ success: true, decision: result });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Firewall check failed" },
-      { status: 500 }
-    );
+    const eventRecord = {
+      id: `evt-${Date.now()}`,
+      agentId,
+      toolName,
+      riskScore: result.riskScore,
+      riskLabel: result.label,
+      decision: result.decision,
+      reason: result.reasons[0] ?? "Evaluated by SAPIENS Firewall Engine",
+      createdAt: new Date().toISOString(),
+      isHoneypot: result.decision === "honeypot",
+    };
+
+    RUNTIME_FIREWALL_EVENTS.unshift(eventRecord);
+    if (RUNTIME_FIREWALL_EVENTS.length > 50) RUNTIME_FIREWALL_EVENTS.pop();
+
+    return NextResponse.json({
+      success: true,
+      decision: result.decision,
+      riskScore: result.riskScore,
+      event: eventRecord,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
-
-// ─── Demo events for when the DB is empty ────────────────────────────────────
-const DEMO_FIREWALL_EVENTS = [
-  {
-    id: "evt-1",
-    toolName: "gmail_read",
-    riskScore: 8,
-    riskLabel: "LOW",
-    decision: "allow",
-    reason: "Auto-approved (Risk: 8/100)",
-    createdAt: new Date(Date.now() - 60000 * 1),
-    isHoneypot: false,
-  },
-  {
-    id: "evt-2",
-    toolName: "shopify_search",
-    riskScore: 6,
-    riskLabel: "LOW",
-    decision: "allow",
-    reason: "Auto-approved (Risk: 6/100)",
-    createdAt: new Date(Date.now() - 60000 * 2),
-    isHoneypot: false,
-  },
-  {
-    id: "evt-3",
-    toolName: "shopify_create_invoice",
-    riskScore: 20,
-    riskLabel: "LOW",
-    decision: "allow",
-    reason: "Auto-approved (Risk: 20/100)",
-    createdAt: new Date(Date.now() - 60000 * 3),
-    isHoneypot: false,
-  },
-  {
-    id: "evt-4",
-    toolName: "stripe_charge",
-    riskScore: 82,
-    riskLabel: "HIGH",
-    decision: "require_approval",
-    reason: 'Tool "stripe_charge" requires human approval. Risk Score: 82/100 | Sensitive arguments detected (+10) | PII data involved (+25) | Production environment (+15)',
-    createdAt: new Date(Date.now() - 60000 * 4),
-    isHoneypot: false,
-  },
-  {
-    id: "evt-5",
-    toolName: "postgres_delete",
-    riskScore: 100,
-    riskLabel: "CRITICAL",
-    decision: "block",
-    reason: 'Tool "postgres_delete" is permanently blocked: DELETE from PostgreSQL — PERMANENTLY BLOCKED',
-    createdAt: new Date(Date.now() - 60000 * 5),
-    isHoneypot: false,
-  },
-  {
-    id: "evt-6",
-    toolName: "bypass_guardrails",
-    riskScore: 100,
-    riskLabel: "CRITICAL",
-    decision: "honeypot",
-    reason: "🍯 HONEYPOT: Attempting to bypass the guardrail engine",
-    createdAt: new Date(Date.now() - 60000 * 7),
-    isHoneypot: true,
-  },
-  {
-    id: "evt-7",
-    toolName: "send_notification",
-    riskScore: 38,
-    riskLabel: "MEDIUM",
-    decision: "require_approval",
-    reason: 'Tool "send_notification" requires human approval. Risk Score: 38/100',
-    createdAt: new Date(Date.now() - 60000 * 10),
-    isHoneypot: false,
-  },
-  {
-    id: "evt-8",
-    toolName: "github_read",
-    riskScore: 8,
-    riskLabel: "LOW",
-    decision: "allow",
-    reason: "Auto-approved (Risk: 8/100)",
-    createdAt: new Date(Date.now() - 60000 * 12),
-    isHoneypot: false,
-  },
-];

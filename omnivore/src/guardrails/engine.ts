@@ -309,17 +309,17 @@ export async function getFirewallStats(agentId?: string): Promise<{
     const honeypotPenalty = Math.min(30, honeypots * 10);
     const trustScore = totalActions > 0
       ? Math.max(0, Math.round((allowed / totalActions) * 100 - honeypotPenalty))
-      : 94;
+      : 100;
 
     return { totalActions, allowed, requireApproval, blocked, honeypots, trustScore };
   } catch {
     return {
-      totalActions: 147,
-      allowed: 132,
-      requireApproval: 11,
-      blocked: 4,
-      honeypots: 2,
-      trustScore: 92,
+      totalActions: 0,
+      allowed: 0,
+      requireApproval: 0,
+      blocked: 0,
+      honeypots: 0,
+      trustScore: 100,
     };
   }
 }

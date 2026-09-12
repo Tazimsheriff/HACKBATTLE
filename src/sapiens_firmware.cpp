@@ -17,14 +17,15 @@
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
 
-// ═══════════════════════════════════════════════════════
-// PIN DEFINITIONS
-// ═══════════════════════════════════════════════════════
 #define OLED_SDA_PIN      8
 #define OLED_SCL_PIN      9
-#define DHT_PIN           4
 #define BUZZER_PIN        5
 #define BUTTON_TEST_PIN   0
+
+// Candidate pins for DHT DATA (Supports GPIO 10 and GPIO 4)
+const int DHT_PINS[] = { 10, 4 };
+int currentPinIndex = 0;
+#define ACTIVE_DHT_PIN    (DHT_PINS[currentPinIndex])
 
 // DHT Sensor Type: DHT22 (white) or DHT11 (blue)
 #define DHT_TYPE          DHT22
@@ -47,7 +48,7 @@ const char* SERVER_ENDPOINT = "http://192.168.137.1:3000/api/esp32/events";
 // PERIPHERALS & GLOBAL STATE
 // ═══════════════════════════════════════════════════════
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-DHT dht(DHT_PIN, DHT_TYPE);
+DHT dht(10, DHT_TYPE);
 
 float currentTemp = -18.2;
 float currentHumidity = 82.0;
@@ -57,6 +58,7 @@ bool policySuppressed = false;
 bool buzzerBeeping = false;
 bool isDht11 = false;
 bool sensorDetected = false;
+int detectedPin = 10;
 unsigned long lastSensorReadTime = 0;
 unsigned long lastTelemetrySendTime = 0;
 unsigned long lastBuzzerToggleTime = 0;
@@ -113,44 +115,45 @@ void updateOLED() {
 
   display.setTextColor(SSD1306_WHITE);
 
-  // 2. Temperature Readout
+  // 2. Large Centered Temperature Readout (Exclusively on Row 2)
   if (sensorDetected) {
     display.setTextSize(2);
-    display.setCursor(4, 16);
+    display.setCursor(16, 16);
     display.printf("%+.1f C", currentTemp);
 
+    // 3. Row 3: Relative Humidity (Left) & Storage Seal Status (Right)
     display.setTextSize(1);
     display.setCursor(4, 36);
-    display.printf("HUM:%.0f%%  %s", currentHumidity, (isDht11 ? "DHT11" : "DHT22"));
+    display.printf("RH:%.0f%%", currentHumidity);
+
+    display.setCursor(76, 36);
+    if (buzzerBeeping) {
+      display.print("[ALARM]");
+    } else if (doorOpen) {
+      display.print("[ OPEN]");
+    } else {
+      display.print("[SEALED]");
+    }
   } else {
     display.setTextSize(1);
     display.setCursor(4, 16);
     display.print("DHT: NO SENSOR DATA");
     display.setCursor(4, 26);
-    display.print("CHECK GPIO 4 (DATA)");
+    display.print("CHECK GPIO 10 OR 4");
     display.setCursor(4, 36);
-    display.printf("DEMO BASELINE: %.1fC", currentTemp);
+    display.printf("SCANNING GPIO %d...", ACTIVE_DHT_PIN);
   }
 
-  display.setCursor(72, 36);
-  if (buzzerBeeping) {
-    display.print("[BUZZ:ON]");
-  } else if (doorOpen) {
-    display.print("[OPEN]");
-  } else {
-    display.print("[SEALED]");
-  }
+  // 4. Status Bar Divider Line
+  display.drawLine(0, 48, SCREEN_WIDTH, 48, SSD1306_WHITE);
 
-  // 4. Status Bar Divider
-  display.drawLine(0, 49, SCREEN_WIDTH, 49, SSD1306_WHITE);
-
-  // 5. Cloud Connection & Packet Footer
-  display.setCursor(2, 54);
-  display.printf("NET:%s  ACK:#%d", (WiFi.status() == WL_CONNECTED ? "OK" : "DISC"), packetCount);
+  // 5. Cloud Connection & Packet Footer (Shows DHT22 Pin & Packet Count)
+  display.setCursor(2, 53);
+  display.printf("NET:%s DHT22:P%d #%d", (WiFi.status() == WL_CONNECTED ? "OK" : "DISC"), detectedPin, packetCount);
 
   // Small activity heartbeat dot
   if ((millis() / 500) % 2 == 0) {
-    display.fillCircle(122, 57, 2, SSD1306_WHITE);
+    display.fillCircle(123, 56, 2, SSD1306_WHITE);
   }
 
   display.display();
@@ -160,6 +163,21 @@ void updateOLED() {
 // HTTP TELEMETRY DISPATCH TO SAPIENS AGENT
 // ═══════════════════════════════════════════════════════
 void sendTelemetryToAgent() {
+  String jsonPayload = 
+    "{\"deviceId\":\"ESP32-S3-COLD-01\","
+    "\"temperature\":" + String(currentTemp, 1) + ","
+    "\"humidity\":" + String(currentHumidity, 1) + ","
+    "\"sensorConnected\":" + (sensorDetected ? "true" : "false") + ","
+    "\"detectedPin\":" + String(detectedPin) + ","
+    "\"sensorModel\":\"" + String(isDht11 ? "DHT11" : "DHT22") + "\","
+    "\"packetCount\":" + String(packetCount) + ","
+    "\"doorOpen\":" + (doorOpen ? "true" : "false") + ","
+    "\"isBootBreach\":" + (alarmActive ? "true" : "false") + "}";
+
+  // Always emit telemetry to Serial so COM4 USB bridge can ingest instantly
+  Serial.print("[TELEMETRY_JSON] ");
+  Serial.println(jsonPayload);
+
   if (WiFi.status() != WL_CONNECTED) {
     packetCount++;
     return;
@@ -170,31 +188,9 @@ void sendTelemetryToAgent() {
   http.addHeader("Content-Type", "application/json");
   http.setTimeout(3000);
 
-  String jsonPayload = 
-    "{\"deviceId\":\"ESP32-S3-COLD-01\","
-    "\"temperature\":" + String(currentTemp, 1) + ","
-    "\"humidity\":" + String(currentHumidity, 1) + ","
-    "\"doorOpen\":" + (doorOpen ? "true" : "false") + "}";
-
   int httpCode = http.POST(jsonPayload);
   if (httpCode > 0) {
-    String response = http.getString();
     packetCount++;
-
-    // Check if AI policy engine suppressed the alert
-    if (response.indexOf("\"suppressedByPolicy\":true") >= 0) {
-      policySuppressed = true;
-      alarmActive = false;
-      noTone(BUZZER_PIN);
-    } else {
-      policySuppressed = false;
-      if (response.indexOf("\"anomalyFlag\":true") >= 0) {
-        alarmActive = true;
-      } else {
-        alarmActive = false;
-        noTone(BUZZER_PIN);
-      }
-    }
   } else {
     Serial.printf("Telemetry POST failed: %d\n", httpCode);
   }
@@ -273,24 +269,42 @@ void loop() {
   unsigned long now = millis();
 
   // 1. Check BOOT Button (Hold to trigger instant test breach & siren)
+  static bool lastBtnState = false;
   bool buttonPressed = (digitalRead(BUTTON_TEST_PIN) == LOW);
   if (buttonPressed) {
-    currentTemp = -8.2; // Critical thermal breach above threshold
     doorOpen = true;
     alarmActive = true;
     policySuppressed = false;
+    if (!lastBtnState) {
+      lastTelemetrySendTime = now;
+      Serial.println("[BOOT ALARM] Button pressed! Critical thermal breach triggered.");
+      sendTelemetryToAgent(); // Immediate dispatch!
+    }
+  } else {
+    doorOpen = false;
+    alarmActive = false;
+  }
+  lastBtnState = buttonPressed;
+
+  // Auto-reconnect WiFi if disconnected
+  static unsigned long lastWiFiRetry = 0;
+  if (WiFi.status() != WL_CONNECTED && now - lastWiFiRetry >= 5000) {
+    lastWiFiRetry = now;
+    WiFi.reconnect();
   }
 
-  // 2. Read Physical DHT Sensor Every 2 Seconds
+  // 2. Read Physical DHT Sensor Every 2 Seconds (Auto-scans GPIO 10 & GPIO 4, DHT22 & DHT11)
   if (now - lastSensorReadTime >= 2000) {
     lastSensorReadTime = now;
     float readT = dht.readTemperature();
     float readH = dht.readHumidity();
 
     if (isnan(readT) || isnan(readH)) {
-      // Toggle between DHT11 and DHT22 to auto-detect model
-      isDht11 = !isDht11;
-      dht = DHT(DHT_PIN, isDht11 ? DHT11 : DHT22);
+      // Cycle pin and sensor type
+      currentPinIndex = (currentPinIndex + 1) % 2;
+      isDht11 = (currentPinIndex == 0) ? !isDht11 : isDht11;
+      int testPin = ACTIVE_DHT_PIN;
+      dht = DHT(testPin, isDht11 ? DHT11 : DHT22);
       dht.begin();
       delay(40);
       readT = dht.readTemperature();
@@ -299,12 +313,15 @@ void loop() {
 
     if (!isnan(readT) && !isnan(readH)) {
       sensorDetected = true;
-      currentTemp = readT;
-      currentHumidity = readH;
-      Serial.printf("[DHT OK] Model: %s | Temp: %.1f C | Hum: %.1f %%\n", (isDht11 ? "DHT11" : "DHT22"), currentTemp, currentHumidity);
+      detectedPin = ACTIVE_DHT_PIN;
+      currentTemp = readT; // Actual real temperature from sensor!
+      currentHumidity = readH; // Actual real humidity from sensor!
+      Serial.printf("[DHT SUCCESS] Model: %s on GPIO %d | Temp: %.1f C | Hum: %.1f %%\n",
+                    (isDht11 ? "DHT11" : "DHT22"), detectedPin, currentTemp, currentHumidity);
     } else {
       sensorDetected = false;
-      Serial.println("[DHT INFO] No reading from sensor on GPIO 4. Check wiring: VCC->3.3V, GND->GND, DATA->GPIO 4.");
+      Serial.printf("[DHT SCAN] Testing GPIO %d (%s)... No signal yet.\n",
+                    ACTIVE_DHT_PIN, (isDht11 ? "DHT11" : "DHT22"));
     }
   }
 
@@ -312,15 +329,6 @@ void loop() {
   if (now - lastTelemetrySendTime >= 4000) {
     lastTelemetrySendTime = now;
     sendTelemetryToAgent();
-
-    // Auto-recover test breach if button is released
-    if (!buttonPressed) {
-      doorOpen = false;
-      if (currentTemp > -12.0 && isnan(dht.readTemperature())) {
-        currentTemp = -18.2;
-        alarmActive = false;
-      }
-    }
   }
 
   // 4. Handle Buzzer Siren (Pulsing alarm beep on unsuppressed breach)

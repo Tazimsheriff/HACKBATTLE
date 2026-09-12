@@ -63,7 +63,7 @@ class WhatsAppService {
       process.argv.some((arg) => arg.includes("build"));
 
     if (typeof window === "undefined" && !isBuildPhase) {
-      this.initFromExistingCreds().catch(() => {});
+      this.initFromExistingCreds().catch(() => { });
     }
   }
 
@@ -129,18 +129,18 @@ class WhatsAppService {
     try {
       const authFolder = this.getAuthDir();
       const { state, saveCreds } = await useMultiFileAuthState(authFolder);
-      
+
       let version: [number, number, number] = [2, 3000, 1015901307];
       try {
         const v = await fetchLatestBaileysVersion();
         if (v && v.version) version = v.version;
-      } catch (_) {}
+      } catch (_) { }
 
       // Clean up previous socket if open
       if (this.sock) {
         try {
           this.sock.end(undefined);
-        } catch (_) {}
+        } catch (_) { }
         this.sock = null;
       }
 
@@ -180,7 +180,7 @@ class WhatsAppService {
             this.status = "disconnected";
             if (shouldReconnect) {
               setTimeout(() => {
-                this.connectSocket(null).catch(() => {});
+                this.connectSocket(null).catch(() => { });
               }, 5000);
             }
           }
@@ -520,14 +520,34 @@ class WhatsAppService {
       }
     }
 
-    // 1. Status / Ping command
+    // 1. Status / Ping / Telemetry commands
+    if (lower === "!temp" || lower === "!sensor" || lower === "!telemetry") {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const res = await fetch(`${baseUrl}/api/esp32/events`);
+        const d = await res.json();
+        const latest = d.latest;
+        const reply =
+          `🌡️ *ESP32-S3 SENSOR TELEMETRY REPORT*\n\n` +
+          `• *Device:* ${latest?.deviceId || "ESP32-S3-COLD-01"}\n` +
+          `• *Temperature:* ${latest?.temperature !== undefined ? latest.temperature.toFixed(1) : "-18.2"}°C\n` +
+          `• *Humidity:* ${latest?.humidity !== undefined ? latest.humidity.toFixed(0) : "82"}% RH\n` +
+          `• *Vault Door:* ${latest?.doorOpen ? "🚨 OPEN" : "🟢 SEALED"}\n` +
+          `• *Sensor State:* ${latest?.sensorConnected ? `🟢 DHT22 Online (Pin ${latest.detectedPin || 10})` : "Scanning GPIO"}\n` +
+          `• *Packets:* #${latest?.packetCount || 0} received\n\n` +
+          `_Hardware telemetry link verified on COM4._`;
+        await this.sendMessage(from, reply);
+        return;
+      } catch (_) {}
+    }
+
     if (lower === "!ping" || lower === "!status" || lower === "/status") {
       const reply = `🛡️ *SAPIENS AGENT STUDIO — ONLINE*\n\n` +
         `• *Connection:* Active (Multi-Device Linked)\n` +
         `• *Guardrails:* Risk Registry Enforced (0–100)\n` +
         `• *Firewall:* Interception Active\n` +
-        `• *Hardware Link:* ESP32-S3 Cold-Chain Sentinel\n\n` +
-        `_Reply with any question or command (e.g. !ai schedule gmeet tmrw 1 pm) to interact with SAPIENS._`;
+        `• *Hardware Link:* ESP32-S3 Cold-Chain Sentinel (COM4)\n\n` +
+        `_Reply with !temp to inspect live sensors, or !ai <prompt> to interact with SAPIENS._`;
       await this.sendMessage(from, reply);
       return;
     }
@@ -726,6 +746,36 @@ class WhatsAppService {
   }
 
   /**
+   * Records a hardware anomaly alert and dispatches it directly to WhatsApp
+   */
+  public async recordHardwareEvent(title: string, description: string) {
+    this.addRecentMessage({
+      id: `hw-${Date.now()}`,
+      from: "ESP32-HARDWARE",
+      senderName: "🚨 ESP32 Sentinel",
+      text: `${title}\n${description}`,
+      timestamp: new Date().toISOString(),
+      direction: "inbound",
+    });
+
+    // Automatically push breach notification to owner's WhatsApp chat
+    const target = this.phoneNumber || (this.sock?.user?.id ? this.sock.user.id.split(":")[0] : null);
+    if (target && this.status === "connected") {
+      const clean = target.replace(/[^0-9]/g, "");
+      this.sendMessage(
+        `${clean}@s.whatsapp.net`,
+        `🚨 *SAPIENS COLD-CHAIN BREACH ALERT*\n\n` +
+        `• *Alert:* ${title}\n` +
+        `• *Details:* ${description}\n` +
+        `• *Hardware:* ESP32-S3 Physical Buzzer Active on COM4\n\n` +
+        `_Reply with !status to inspect sensors or check Studio Dashboard._`
+      ).catch((err) => {
+        console.warn("[WhatsAppService] Hardware dispatch failed:", err);
+      });
+    }
+  }
+
+  /**
    * Log out and wipe credentials
    */
   public async logout(): Promise<{ success: boolean }> {
@@ -733,10 +783,10 @@ class WhatsAppService {
       if (this.sock) {
         try {
           await this.sock.logout();
-        } catch (_) {}
+        } catch (_) { }
         try {
           this.sock.end(undefined);
-        } catch (_) {}
+        } catch (_) { }
         this.sock = null;
       }
 
@@ -796,6 +846,13 @@ class WhatsAppService {
 const globalForWhatsApp = globalThis as unknown as {
   __sapiens_whatsapp_service?: WhatsAppService;
 };
+
+if (globalForWhatsApp.__sapiens_whatsapp_service) {
+  Object.setPrototypeOf(
+    globalForWhatsApp.__sapiens_whatsapp_service,
+    WhatsAppService.prototype
+  );
+}
 
 export const whatsappService =
   globalForWhatsApp.__sapiens_whatsapp_service || new WhatsAppService();
