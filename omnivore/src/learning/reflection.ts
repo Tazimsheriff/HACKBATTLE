@@ -5,14 +5,23 @@ import { eq, and } from 'drizzle-orm';
 import { getUnprocessedExperiences, markExperiencesProcessed } from './experience';
 import type { Experience } from '../db/schema';
 
+const isGoogleGeminiKey = !!process.env.GEMINI_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY || 'sk-or-placeholder';
+const baseURL = isGoogleGeminiKey
+  ? 'https://generativelanguage.googleapis.com/v1beta/openai/'
+  : 'https://openrouter.ai/api/v1';
+
 const openrouter = new OpenAI({
-  apiKey: process.env.OPENROUTER_API_KEY || 'sk-or-placeholder',
-  baseURL: 'https://openrouter.ai/api/v1',
-  defaultHeaders: {
-    'HTTP-Referer': 'https://omnivore-agent.vercel.app',
-    'X-Title': 'OMNIVORE AGENT Learning Engine',
-  },
+  apiKey,
+  baseURL,
+  defaultHeaders: isGoogleGeminiKey
+    ? {}
+    : {
+        'HTTP-Referer': 'https://omnivore-agent.vercel.app',
+        'X-Title': 'OMNIVORE AGENT Learning Engine',
+      },
 });
+
 
 
 // ─────────────────────────────────────────────────────
@@ -89,7 +98,7 @@ Return ONLY the JSON object, no markdown.`;
 
   try {
     const response = await openrouter.chat.completions.create({
-      model: 'google/gemini-2.0-flash-001',
+      model: isGoogleGeminiKey ? 'gemini-2.0-flash' : 'google/gemini-2.0-flash-001',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.2,
       max_tokens: 800,
