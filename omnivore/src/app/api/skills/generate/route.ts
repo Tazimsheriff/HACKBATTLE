@@ -19,17 +19,39 @@ export async function POST(req: Request) {
       ],
     };
 
-    // If API Key is present, generate with high-quality frontier AI
-    if (process.env.MISTRAL_API_KEY) {
+    const userApiKey = body.apiKey?.trim();
+    const userEndpoint = body.endpoint?.trim();
+    const requestedModel = body.model || "open-mistral-nemo";
+
+    const effectiveKey = userApiKey || process.env.MISTRAL_API_KEY || process.env.GEMINI_API_KEY;
+
+    // If API Key is present (User BYOK or Platform Tier), generate with high-quality AI
+    if (effectiveKey) {
       try {
-        const mistralRes = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        let endpointUrl = "https://api.mistral.ai/v1/chat/completions";
+        let targetModel = "open-mistral-nemo";
+
+        if (userEndpoint) {
+          endpointUrl = userEndpoint.endsWith("/chat/completions")
+            ? userEndpoint
+            : `${userEndpoint.replace(/\/$/, "")}/chat/completions`;
+          targetModel = requestedModel === "custom-llm" ? "gpt-4o" : requestedModel;
+        } else if (effectiveKey.startsWith("AIzaSy")) {
+          endpointUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+          targetModel = "gemini-2.0-flash";
+        } else if (effectiveKey.startsWith("sk-proj-") || requestedModel.includes("gpt")) {
+          endpointUrl = "https://api.openai.com/v1/chat/completions";
+          targetModel = "gpt-4o";
+        }
+
+        const aiRes = await fetch(endpointUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+            Authorization: `Bearer ${effectiveKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "open-mistral-nemo",
+            model: targetModel,
             temperature: 0.2,
             messages: [
               {
@@ -56,7 +78,7 @@ Return ONLY valid JSON. No markdown backticks, no commentary.`,
           }),
         });
 
-        const data = await mistralRes.json();
+        const data = await aiRes.json();
         const rawContent = data.choices?.[0]?.message?.content?.trim() || "";
         const cleanJson = rawContent.replace(/```json/g, "").replace(/```/g, "").trim();
         const parsed = JSON.parse(cleanJson);

@@ -21,6 +21,8 @@ import {
   Sliders,
   Check,
   Eye,
+  EyeOff,
+  Key,
   Radio,
   FileText,
   Clock,
@@ -151,6 +153,8 @@ When reading sensor data:
   const [agentDesc, setAgentDesc] = useState(currentAgent.description || "");
   const [selectedModel, setSelectedModel] = useState(currentAgent.model);
   const [systemPrompt, setSystemPrompt] = useState(currentAgent.instructions || "");
+  const [studioApiKey, setStudioApiKey] = useState("");
+  const [showStudioApiKey, setShowStudioApiKey] = useState(false);
   const [enabledTools, setEnabledTools] = useState({
     read_emails: true,
     web_search: true,
@@ -265,6 +269,12 @@ When reading sensor data:
 
   // Fetch initial API state
   const fetchData = async () => {
+    // Load saved BYOK API Key
+    if (typeof window !== "undefined") {
+      const savedKey = localStorage.getItem("sapiens_custom_api_key");
+      if (savedKey) setStudioApiKey(savedKey);
+    }
+
     try {
       const patRes = await fetch("/api/learning/patterns");
       if (patRes.ok) {
@@ -412,7 +422,10 @@ When reading sensor data:
       const res = await fetch(`/api/agents/${selectedAgentId}/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: promptToSend }),
+        body: JSON.stringify({
+          input: promptToSend,
+          apiKey: studioApiKey.trim() || undefined,
+        }),
       });
       const data = await res.json();
 
@@ -861,8 +874,8 @@ When reading sensor data:
               </div>
             </div>
 
-            {/* Model Selector */}
-            <div className="sapiens-card p-3.5 space-y-2">
+            {/* Model Selector & BYOK */}
+            <div className="sapiens-card p-3.5 space-y-3">
               <label className="text-xs font-bold text-neutral-800 flex items-center justify-between">
                 <span>Base Intelligence Model</span>
                 <span className="text-[10px] font-mono text-[#71ce34] font-semibold">Low Latency Tool Calling</span>
@@ -874,8 +887,49 @@ When reading sensor data:
               >
                 <option value="sapiens-reasoning-frontier">sapiens-frontier (Deep Reasoning Engine)</option>
                 <option value="sapiens-edge-nemo">sapiens-nemo-12b (Edge Optimized)</option>
-                <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001 (Active - Free Tier)</option>
+                <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001 (Google Gemini)</option>
+                <option value="openai/gpt-4o">gpt-4o (OpenAI GPT-4o)</option>
+                <option value="anthropic/claude-3-5-sonnet">claude-3-5-sonnet (Anthropic Claude)</option>
               </select>
+
+              {/* BYOK API Key Input */}
+              <div className="pt-2 border-t border-[#EAE6DE] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-neutral-700 flex items-center gap-1.5">
+                    <Key className="w-3 h-3 text-[#FA500F]" />
+                    <span>API Key (BYOK)</span>
+                  </label>
+                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    studioApiKey.trim()
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-300"
+                      : "bg-neutral-100 text-neutral-600"
+                  }`}>
+                    {studioApiKey.trim() ? "⚡ Custom Key Active" : "🟢 Free Tier Active"}
+                  </span>
+                </div>
+                <div className="relative flex items-center">
+                  <input
+                    type={showStudioApiKey ? "text" : "password"}
+                    value={studioApiKey}
+                    onChange={(e) => {
+                      setStudioApiKey(e.target.value);
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("sapiens_custom_api_key", e.target.value);
+                      }
+                    }}
+                    placeholder="Custom API Key (Optional BYOK)"
+                    className="w-full bg-[#F7F5F0] border border-[#E6E2DA] rounded pl-2 pr-7 py-1.5 text-[11px] font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowStudioApiKey(!showStudioApiKey)}
+                    className="absolute right-2 text-neutral-400 hover:text-neutral-700 transition"
+                    title={showStudioApiKey ? "Hide Key" : "Show Key"}
+                  >
+                    {showStudioApiKey ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* System Prompt & Injected Policies */}
