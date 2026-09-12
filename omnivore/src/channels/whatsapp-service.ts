@@ -20,6 +20,8 @@ export interface WhatsAppMessageRecord {
   direction: "inbound" | "outbound";
 }
 
+export type WhatsAppAccessMode = "owner_only" | "allowlist" | "public";
+
 export interface WhatsAppStatusInfo {
   status: WhatsAppConnectionStatus;
   phoneNumber: string | null;
@@ -28,6 +30,9 @@ export interface WhatsAppStatusInfo {
   lastConnectedAt: string | null;
   error: string | null;
   recentMessages: WhatsAppMessageRecord[];
+  accessMode?: WhatsAppAccessMode;
+  allowedUsers?: string[];
+  allowedGroupsCount?: number;
 }
 
 class WhatsAppService {
@@ -41,6 +46,11 @@ class WhatsAppService {
   private recentMessages: WhatsAppMessageRecord[] = [];
   private authDir: string;
   private isInitializing: boolean = false;
+
+  // Zero-Trust Default Access Control: Locked to Owner Only by default
+  public accessMode: WhatsAppAccessMode = "owner_only";
+  public allowedUsers: Set<string> = new Set();
+  public allowedGroups: Set<string> = new Set();
 
   constructor() {
     this.authDir =
@@ -272,15 +282,50 @@ class WhatsAppService {
   }
 
   /**
+   * Check if sender is the bot owner
+   */
+  public isOwner(senderJid: string, isFromMe: boolean): boolean {
+    if (isFromMe) return true;
+    const cleanSender = senderJid.replace(/[^0-9]/g, "");
+    const botOwner =
+      this.phoneNumber?.replace(/[^0-9]/g, "") ||
+      (this.sock?.user?.id ? this.sock.user.id.split(":")[0].replace(/[^0-9]/g, "") : "");
+    if (botOwner && cleanSender.startsWith(botOwner)) return true;
+    if (cleanSender.startsWith("919677054449")) return true;
+    return false;
+  }
+
+  /**
+   * Check if sender is authorized to use SAPIENS Agent
+   */
+  public isSenderAuthorized(from: string, senderJid: string, isFromMe: boolean): boolean {
+    // Owner is always authorized
+    if (this.isOwner(senderJid, isFromMe)) return true;
+
+    // In Public mode: anyone can interact with non-admin commands
+    if (this.accessMode === "public") return true;
+
+    // In Allowlist mode: check explicit user phone or group JID
+    if (this.accessMode === "allowlist") {
+      const cleanSender = senderJid.replace(/[^0-9]/g, "");
+      for (const u of this.allowedUsers) {
+        if (cleanSender.includes(u.replace(/[^0-9]/g, ""))) return true;
+      }
+      if (from.endsWith("@g.us") && this.allowedGroups.has(from)) {
+        return true;
+      }
+    }
+
+    // Default: Owner-Only
+    return false;
+  }
+
+  /**
    * Check if a sender has administrative privileges (bot owner or group admin)
    */
   private async isSenderAdmin(from: string, senderJid: string, isFromMe: boolean): Promise<boolean> {
     if (isFromMe) return true;
-    const botOwner =
-      this.phoneNumber?.replace(/[^0-9]/g, "") ||
-      (this.sock?.user?.id ? this.sock.user.id.split(":")[0].replace(/[^0-9]/g, "") : "");
-    const cleanSender = senderJid.replace(/[^0-9]/g, "");
-    if (botOwner && cleanSender.startsWith(botOwner)) return true;
+    if (this.isOwner(senderJid, isFromMe)) return true;
 
     // In direct chat with another user, they are not the bot admin
     if (!from.endsWith("@g.us")) {
@@ -291,6 +336,7 @@ class WhatsAppService {
     try {
       if (!this.sock) return false;
       const groupMeta = await this.sock.groupMetadata(from);
+      const cleanSender = senderJid.replace(/[^0-9]/g, "");
       const participant = groupMeta.participants.find(
         (p) =>
           p.id === senderJid ||
@@ -347,6 +393,102 @@ class WhatsAppService {
     const trimmed = text.trim();
     const lower = trimmed.toLowerCase();
     const hasCommandPrefix = trimmed.startsWith("!") || trimmed.startsWith("/");
+
+    const isOwner = this.isOwner(senderJid, isFromMe);
+    const isAuthorized = this.isSenderAuthorized(from, senderJid, isFromMe);
+
+    // 0. OWNER ACCESS MANAGEMENT COMMANDS: Only the owner (+91 96770 54449) can configure access!
+    if (isOwner) {
+      if (lower.startsWith("!mode ")) {
+        const targetMode = lower.replace("!mode ", "").trim();
+        if (targetMode === "owner" || targetMode === "owner_only") {
+          this.accessMode = "owner_only";
+          await this.sendMessage(from, `🔒 *SAPIENS ACCESS MODE:* Set to *Owner-Only*. Only you (+91 96770 54449) can use this agent.`);
+          return;
+        } else if (targetMode === "allowlist") {
+          this.accessMode = "allowlist";
+          await this.sendMessage(from, `🛡️ *SAPIENS ACCESS MODE:* Set to *Allowlist*. Only approved users/groups can dispatch commands.`);
+          return;
+        } else if (targetMode === "public") {
+          this.accessMode = "public";
+          await this.sendMessage(from, `🌐 *SAPIENS ACCESS MODE:* Set to *Public*. Anyone can use general AI commands.`);
+          return;
+        }
+      }
+
+      if (lower.startsWith("!allow ")) {
+        const target = trimmed.slice(7).trim();
+        if (target.toLowerCase() === "group" || target.toLowerCase() === "this group") {
+          if (from.endsWith("@g.us")) {
+            this.allowedGroups.add(from);
+            this.accessMode = "allowlist";
+            await this.sendMessage(from, `✅ *GROUP AUTHORIZED:* Members of this group can now use SAPIENS Agent.`);
+            return;
+          }
+        } else {
+          const clean = target.replace(/[^0-9]/g, "");
+          if (clean.length >= 8) {
+            this.allowedUsers.add(clean);
+            this.accessMode = "allowlist";
+            await this.sendMessage(from, `✅ *USER AUTHORIZED:* Phone +${clean} has been granted access to SAPIENS Agent.`);
+            return;
+          }
+        }
+      }
+
+      if (lower.startsWith("!disallow ") || lower.startsWith("!revoke ")) {
+        const target = trimmed.replace(/^!(disallow|revoke)\s+/i, "").trim();
+        if (target.toLowerCase() === "group" || target.toLowerCase() === "this group") {
+          this.allowedGroups.delete(from);
+          await this.sendMessage(from, `🚫 *GROUP REVOKED:* Group members can no longer use SAPIENS Agent.`);
+          return;
+        } else {
+          const clean = target.replace(/[^0-9]/g, "");
+          this.allowedUsers.delete(clean);
+          await this.sendMessage(from, `🚫 *USER REVOKED:* +${clean} access revoked.`);
+          return;
+        }
+      }
+
+      if (lower === "!access" || lower === "!allowed") {
+        const usersList = Array.from(this.allowedUsers).map((u) => `+${u}`).join(", ") || "None";
+        const groupsCount = this.allowedGroups.size;
+        await this.sendMessage(
+          from,
+          `🔒 *SAPIENS ACCESS CONTROL*\n\n` +
+          `• *Current Policy:* *${this.accessMode.toUpperCase()}*\n` +
+          `• *Master Owner:* +91 96770 54449 (You)\n` +
+          `• *Allowed Users:* ${usersList}\n` +
+          `• *Allowed Groups:* ${groupsCount}\n\n` +
+          `_Commands: !mode owner | !mode allowlist | !mode public | !allow <number|group> | !revoke <number|group>_`
+        );
+        return;
+      }
+    }
+
+    // 1. NON-AUTHORIZED SENDER INTERCEPTION (Strict Owner-Only Enforcement)
+    if (!isAuthorized) {
+      const secId = `SEC-${Date.now().toString(36).toUpperCase()}`;
+      const violationReason = `🔒 UNAUTHORIZED ACCESS BLOCKED: Non-owner member "${senderName}" (${senderJid}) attempted command "${trimmed}" while in ${this.accessMode.toUpperCase()} mode`;
+
+      await this.reportFirewallViolation({
+        id: secId,
+        toolName: "whatsapp_unauthorized_access",
+        riskScore: 95,
+        reason: violationReason,
+        senderName,
+        from,
+      });
+
+      await this.sendMessage(
+        from,
+        `🔒 *SAPIENS AGENT: ACCESS RESTRICTED*\n\n` +
+        `⚠️ SAPIENS Agent is locked to *Owner-Only Mode* by the administrator (+91 96770 54449).\n` +
+        `🚫 You (*${senderName}*) are not authorized to trigger agent operations.\n` +
+        `🛡️ Incident logged to SAPIENS Trust Center (Audit Ref: \`${secId}\`).`
+      );
+      return;
+    }
 
     // 0. PRIVILEGE ESCALATION INTERCEPTION: Administrative / destructive commands (kick, ban, remove, kill, etc.)
     const ADMIN_COMMAND_REGEX = /^[!/](kick|ban|remove|kill|shutdown|delete|purge|reset|admin|drop|promote|demote)(\s+.*)?$/i;
@@ -636,6 +778,9 @@ class WhatsAppService {
       lastConnectedAt: this.lastConnectedAt,
       error: this.lastError,
       recentMessages: [...this.recentMessages],
+      accessMode: this.accessMode,
+      allowedUsers: Array.from(this.allowedUsers),
+      allowedGroupsCount: this.allowedGroups.size,
     };
   }
 

@@ -2531,6 +2531,16 @@ export default function SapiensAgentStudio() {
                             ? "Pairing code generated. Enter on mobile device."
                             : "Connect your personal or business WhatsApp to receive alerts and approve high-risk actions."}
                         </p>
+                        {waStatus === "connected" && (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px]">
+                            <span className="inline-flex items-center gap-1 font-semibold text-emerald-900 bg-emerald-100/90 border border-emerald-300 px-2 py-0.5 rounded-md">
+                              🔒 Policy: Owner-Only (+91 96770 54449)
+                            </span>
+                            <span className="text-neutral-600 text-[10px]">
+                              Zero-trust active: Only the master owner can dispatch commands. Others are blocked & logged.
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
