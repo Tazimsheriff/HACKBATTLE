@@ -37,16 +37,21 @@ export const initialAgents = [
   },
 ];
 
+// In-memory runtime cache so created agents persist reliably in demo/local mode
+const inMemoryAgentsStore = [...initialAgents];
+
 export async function GET() {
   try {
     const list = await db.select().from(agents).orderBy(desc(agents.createdAt));
-    if (list.length === 0) {
-      return NextResponse.json({ success: true, agents: initialAgents });
+    if (list.length > 0) {
+      const dbIds = new Set(list.map((a) => a.id));
+      const extra = inMemoryAgentsStore.filter((a) => !dbIds.has(a.id));
+      return NextResponse.json({ success: true, agents: [...extra, ...list] });
     }
-    return NextResponse.json({ success: true, agents: list });
   } catch (err) {
-    return NextResponse.json({ success: true, agents: initialAgents });
+    // Database fallback
   }
+  return NextResponse.json({ success: true, agents: inMemoryAgentsStore });
 }
 
 export async function POST(req: Request) {
@@ -95,12 +100,15 @@ export async function POST(req: Request) {
       name,
       description,
       goal: goal || name,
-      instructions: instructions || "Execute tasks safely within guardrail boundaries.",
+      instructions: instructions || `You are ${name}. Execute tasks safely within guardrail boundaries.`,
       model,
       tools,
       status: "active",
       metadata: mistralAgentId ? { mistralAgentId } : {},
     };
+
+    // Store in-memory immediately so it's always returned in GET
+    inMemoryAgentsStore.unshift(newAgent);
 
     try {
       await db.insert(agents).values(newAgent);

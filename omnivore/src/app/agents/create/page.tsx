@@ -349,10 +349,21 @@ export default function CreateAgentPage() {
         }),
       });
 
-      if (res.ok) {
-        router.push("/");
+      const data = await res.json();
+      if (res.ok && data.agent) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("omnivore_active_agent_id", data.agent.id);
+          try {
+            const local = JSON.parse(localStorage.getItem("omnivore_custom_agents") || "[]");
+            localStorage.setItem(
+              "omnivore_custom_agents",
+              JSON.stringify([data.agent, ...local.filter((a: any) => a.id !== data.agent.id)])
+            );
+          } catch (e) {}
+        }
+        router.push(`/?agentId=${data.agent.id}`);
       } else {
-        alert("Failed to create agent");
+        alert(data.error || "Failed to create agent");
       }
     } catch (e) {
       console.error(e);

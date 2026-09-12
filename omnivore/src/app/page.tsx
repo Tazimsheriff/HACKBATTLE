@@ -160,9 +160,29 @@ When reading sensor data:
     db_read: true,
   });
 
+  // Automatically sync Blueprint Form whenever selectedAgentId or agentsList changes
+  useEffect(() => {
+    const ag = agentsList.find((a) => a.id === selectedAgentId);
+    if (ag) {
+      setAgentName(ag.name);
+      setAgentDesc(ag.description || "");
+      setSelectedModel(ag.model);
+      setSystemPrompt(ag.instructions || "");
+      if (typeof window !== "undefined") {
+        localStorage.setItem("omnivore_active_agent_id", ag.id);
+      }
+    }
+  }, [selectedAgentId, agentsList]);
+
   // Switch active agent
   const handleSelectAgent = (agentId: string) => {
     setSelectedAgentId(agentId);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("omnivore_active_agent_id", agentId);
+      const url = new URL(window.location.href);
+      url.searchParams.set("agentId", agentId);
+      window.history.replaceState({}, "", url.toString());
+    }
     const ag = agentsList.find((a) => a.id === agentId);
     if (ag) {
       setAgentName(ag.name);
@@ -268,7 +288,44 @@ When reading sensor data:
       const agRes = await fetch("/api/agents");
       if (agRes.ok) {
         const d = await agRes.json();
-        if (d.agents?.length) setAgentsList(d.agents);
+        if (d.agents?.length) {
+          let list = d.agents;
+          if (typeof window !== "undefined") {
+            try {
+              const local = JSON.parse(localStorage.getItem("omnivore_custom_agents") || "[]");
+              if (local.length) {
+                const apiIds = new Set(d.agents.map((a: any) => a.id));
+                const extra = local.filter((a: any) => !apiIds.has(a.id));
+                list = [...extra, ...d.agents];
+              }
+            } catch (e) {}
+          }
+          setAgentsList(list);
+
+          // Auto-select target agent if present in URL query or localStorage
+          let targetId = selectedAgentId;
+          if (typeof window !== "undefined") {
+            const urlParams = new URLSearchParams(window.location.search);
+            const queryId = urlParams.get("agentId");
+            const storedId = localStorage.getItem("omnivore_active_agent_id");
+            if (queryId && list.some((a: any) => a.id === queryId)) {
+              targetId = queryId;
+            } else if (storedId && list.some((a: any) => a.id === storedId)) {
+              targetId = storedId;
+            }
+          }
+
+          if (targetId && list.some((a: any) => a.id === targetId)) {
+            setSelectedAgentId(targetId);
+            const ag = list.find((a: any) => a.id === targetId);
+            if (ag) {
+              setAgentName(ag.name);
+              setAgentDesc(ag.description || "");
+              setSelectedModel(ag.model);
+              setSystemPrompt(ag.instructions || "");
+            }
+          }
+        }
       }
     } catch (e) {
       console.warn("API state fetch fallback:", e);
@@ -276,6 +333,13 @@ When reading sensor data:
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryId = urlParams.get("agentId");
+      const storedId = localStorage.getItem("omnivore_active_agent_id");
+      if (queryId) setSelectedAgentId(queryId);
+      else if (storedId) setSelectedAgentId(storedId);
+    }
     fetchData();
     const handleFocus = () => {
       fetchData();
