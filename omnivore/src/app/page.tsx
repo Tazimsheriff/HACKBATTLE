@@ -32,6 +32,12 @@ import {
   Zap,
   ChevronRight,
   LayoutGrid,
+  Plus,
+  Share2,
+  MessageSquare,
+  MessageCircle,
+  Hash,
+  X,
 } from "lucide-react";
 
 interface TelemetryData {
@@ -83,24 +89,74 @@ interface ApprovalItem {
   status: string;
 }
 
+interface AgentItem {
+  id: string;
+  name: string;
+  description?: string;
+  goal?: string;
+  instructions?: string;
+  model: string;
+  tools?: string[];
+}
+
 export default function MistralAgentStudio() {
   // Top view mode: "builder" (Mistral Agent Builder Studio) vs "showcase" (Mistral Frontier Landing)
   const [viewMode, setViewMode] = useState<"builder" | "showcase">("builder");
 
-  // Builder Config State
-  const [agentName, setAgentName] = useState("Cold-Chain Guardian");
-  const [agentDesc, setAgentDesc] = useState(
-    "Autonomous medical storage monitor with continuous self-learning defrost adaptation and hardware guardrails."
-  );
-  const [selectedModel, setSelectedModel] = useState("google/gemini-2.0-flash-001");
-  const [systemPrompt, setSystemPrompt] = useState(
-    `You are the OMNIVORE Cold-Chain Agent. Your goal is to safeguard vaccine temperature containers at -18°C.
+  // Modals state
+  const [showNewAgentModal, setShowNewAgentModal] = useState(false);
+  const [showChannelsModal, setShowChannelsModal] = useState(false);
+  const [channelTab, setChannelTab] = useState<"whatsapp" | "discord" | "telegram">("whatsapp");
+  const [channelToast, setChannelToast] = useState<string | null>(null);
+
+  // Agents list
+  const [agentsList, setAgentsList] = useState<AgentItem[]>([
+    {
+      id: "omnivore-cold-chain",
+      name: "Cold-Chain Guardian",
+      description: "Autonomous medical storage monitor with continuous self-learning defrost adaptation and hardware guardrails.",
+      goal: "Safeguard vaccine container COLD-01 at -18°C and suppress false alarms.",
+      instructions: `You are the OMNIVORE Cold-Chain Agent. Your goal is to safeguard vaccine temperature containers at -18°C.
 When reading sensor data:
 1. Cross-reference temperature spikes against past episodic experiences.
 2. If the anomaly matches known defrost routines (02:00 UTC), hold alarms.
 3. If genuine breach > -10°C occurs, trigger emergency notification.
-4. Any physical hardware cutoff requires strict human authorization.`
-  );
+4. Any physical hardware cutoff requires strict human authorization.`,
+      model: "google/gemini-2.0-flash-001",
+      tools: ["get_sensor_data", "query_memory", "send_notification", "emergency_compressor_cutoff"],
+    },
+    {
+      id: "pharmacy-vault-s3",
+      name: "Pharmacy Vault S3",
+      description: "Multi-sensor environmental monitor for temperature, humidity, and door aperture.",
+      goal: "Maintain pharma storage humidity under 60% and temperature between 2°C and 8°C.",
+      instructions: "Monitor refrigerated medications. Alert on door breaches lasting > 45 seconds.",
+      model: "mistralai/mistral-large-2407",
+      tools: ["get_sensor_data", "send_notification"],
+    },
+  ]);
+  const [selectedAgentId, setSelectedAgentId] = useState("omnivore-cold-chain");
+
+  // New Agent Form
+  const [newAgentName, setNewAgentName] = useState("");
+  const [newAgentDesc, setNewAgentDesc] = useState("");
+  const [newAgentGoal, setNewAgentGoal] = useState("");
+  const [newAgentModel, setNewAgentModel] = useState("google/gemini-2.0-flash-001");
+  const [newAgentPrompt, setNewAgentPrompt] = useState("");
+
+  // Channels Form
+  const [discordWebhook, setDiscordWebhook] = useState("");
+  const [telegramToken, setTelegramToken] = useState("");
+  const [telegramChatId, setTelegramChatId] = useState("");
+  const [whatsAppRecipient, setWhatsAppRecipient] = useState("+1 555-0199");
+  const [isSendingTest, setIsSendingTest] = useState(false);
+
+  // Builder Config State (synced with selectedAgent)
+  const currentAgent = agentsList.find((a) => a.id === selectedAgentId) || agentsList[0];
+  const [agentName, setAgentName] = useState(currentAgent.name);
+  const [agentDesc, setAgentDesc] = useState(currentAgent.description || "");
+  const [selectedModel, setSelectedModel] = useState(currentAgent.model);
+  const [systemPrompt, setSystemPrompt] = useState(currentAgent.instructions || "");
   const [enabledTools, setEnabledTools] = useState({
     get_sensor_data: true,
     query_memory: true,
@@ -108,6 +164,79 @@ When reading sensor data:
     emergency_compressor_cutoff: true,
     db_read: true,
   });
+
+  // Switch active agent
+  const handleSelectAgent = (agentId: string) => {
+    setSelectedAgentId(agentId);
+    const ag = agentsList.find((a) => a.id === agentId);
+    if (ag) {
+      setAgentName(ag.name);
+      setAgentDesc(ag.description || "");
+      setSelectedModel(ag.model);
+      setSystemPrompt(ag.instructions || "");
+    }
+  };
+
+  // Create new agent
+  const handleCreateAgent = async () => {
+    if (!newAgentName.trim()) return;
+    try {
+      const res = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newAgentName,
+          description: newAgentDesc,
+          goal: newAgentGoal,
+          instructions: newAgentPrompt,
+          model: newAgentModel,
+        }),
+      });
+      const data = await res.json();
+      if (data.agent) {
+        setAgentsList((prev) => [...prev, data.agent]);
+        handleSelectAgent(data.agent.id);
+        setShowNewAgentModal(false);
+        setNewAgentName("");
+        setNewAgentDesc("");
+        setNewAgentGoal("");
+        setNewAgentPrompt("");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Test Channel
+  const handleTestChannel = async (channel: "whatsapp" | "discord" | "telegram") => {
+    setIsSendingTest(true);
+    try {
+      const config =
+        channel === "discord"
+          ? { webhookUrl: discordWebhook }
+          : channel === "telegram"
+          ? { botToken: telegramToken, chatId: telegramChatId }
+          : { recipient: whatsAppRecipient };
+
+      const res = await fetch("/api/channels/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channel, config }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setChannelToast(`✅ Test alert successfully routed to ${channel.toUpperCase()}!`);
+      } else {
+        setChannelToast(`⚠️ Notice: ${data.error || "Simulated test packet recorded"}`);
+      }
+      setTimeout(() => setChannelToast(null), 4000);
+    } catch (e) {
+      setChannelToast("❌ Failed sending channel test");
+      setTimeout(() => setChannelToast(null), 4000);
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
 
   // Arena Right Tab State
   const [arenaTab, setArenaTab] = useState<"chat" | "oled" | "trace" | "approvals">("chat");
@@ -169,6 +298,12 @@ When reading sensor data:
         const d = await metRes.json();
         if (d.metrics?.trustScore) setTrustScore(d.metrics.trustScore);
       }
+
+      const agRes = await fetch("/api/agents");
+      if (agRes.ok) {
+        const d = await agRes.json();
+        if (d.agents?.length) setAgentsList(d.agents);
+      }
     } catch (e) {
       console.warn("API state fetch fallback:", e);
     }
@@ -203,7 +338,6 @@ When reading sensor data:
         policyMatchedRule: data.policyMatchedRule,
       });
 
-      // Add a system event into the chat stream
       if (data.suppressedByPolicy) {
         setMessages((prev) => [
           ...prev,
@@ -237,7 +371,7 @@ When reading sensor data:
     setIsRunning(true);
 
     try {
-      const res = await fetch("/api/agents/omnivore-cold-chain/run", {
+      const res = await fetch(`/api/agents/${selectedAgentId}/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ input: promptToSend }),
@@ -315,14 +449,23 @@ When reading sensor data:
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#0C0C0D] flex flex-col selection:bg-[#FA500F] selection:text-white font-sans">
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* MISTRAL TOP NAVIGATION BAR (WHITE MODE)                       */}
+      {/* TOP NOTIFICATION TOAST                                       */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <header className="border-b border-[#E6E2DA] bg-[#FAF8F5]/90 backdrop-blur-md sticky top-0 z-50">
+      {channelToast && (
+        <div className="fixed top-3 right-4 z-50 px-4 py-2 rounded bg-neutral-900 text-white text-xs shadow-xl border border-neutral-700 flex items-center gap-2 animate-bounce">
+          <span>{channelToast}</span>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* MISTRAL TOP NAVIGATION BAR                                    */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <header className="border-b border-[#E6E2DA] bg-[#FAF8F5]/90 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-6">
+          {/* Logo & Agent Switcher */}
+          <div className="flex items-center gap-4 sm:gap-6">
             <div
-              className="flex items-center gap-2.5 cursor-pointer"
+              className="flex items-center gap-2 cursor-pointer"
               onClick={() => setViewMode("showcase")}
             >
               {/* Mistral Iconic Pixel Glyph */}
@@ -337,45 +480,51 @@ When reading sensor data:
                 <div className="bg-transparent"></div>
                 <div className="bg-white"></div>
               </div>
-              <span className="font-extrabold text-base tracking-tight text-[#0C0C0D] flex items-center gap-1.5">
+              <span className="font-extrabold text-base tracking-tight text-[#0C0C0D] flex items-center gap-1">
                 OMNIVORE <span className="text-[#FA500F]">STUDIO</span>
               </span>
             </div>
 
-            {/* Navigation links */}
-            <nav className="hidden lg:flex items-center gap-5 text-xs text-neutral-600 font-medium">
-              <button
-                onClick={() => setViewMode("builder")}
-                className={`transition ${
-                  viewMode === "builder"
-                    ? "text-[#0C0C0D] font-bold flex items-center gap-1.5"
-                    : "hover:text-[#0C0C0D]"
-                }`}
+            {/* Agent Switcher Dropdown */}
+            <div className="flex items-center gap-1.5 bg-[#EFECE6] px-2.5 py-1 rounded border border-[#E0DCD4] text-xs">
+              <span className="text-neutral-500 font-mono text-[10px]">AGENT:</span>
+              <select
+                value={selectedAgentId}
+                onChange={(e) => handleSelectAgent(e.target.value)}
+                className="bg-transparent text-xs font-bold text-[#0C0C0D] focus:outline-none cursor-pointer"
               >
-                <Bot className="w-3.5 h-3.5 text-[#FA500F]" />
-                Agent Builder
-              </button>
+                {agentsList.map((ag) => (
+                  <option key={ag.id} value={ag.id}>
+                    {ag.name}
+                  </option>
+                ))}
+              </select>
               <button
-                onClick={() => setViewMode("showcase")}
-                className={`transition ${
-                  viewMode === "showcase" ? "text-[#0C0C0D] font-bold" : "hover:text-[#0C0C0D]"
-                }`}
+                onClick={() => setShowNewAgentModal(true)}
+                className="ml-1.5 p-1 rounded bg-[#FA500F] hover:bg-[#ff6422] text-white transition"
+                title="Create New Agent"
               >
-                Frontier Studio
+                <Plus className="w-3 h-3" />
               </button>
-              <span className="text-neutral-300">|</span>
-              <span className="hover:text-[#0C0C0D] cursor-pointer flex items-center gap-1">
-                <Cpu className="w-3.5 h-3.5 text-[#0066FF]" /> ESP32 Hardware (COM4)
+            </div>
+
+            {/* Channels Button (WhatsApp, Discord, Telegram) */}
+            <button
+              onClick={() => setShowChannelsModal(true)}
+              className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded bg-white hover:bg-neutral-50 text-xs font-bold text-[#0C0C0D] border border-[#E0DCD4] shadow-2xs transition"
+            >
+              <Share2 className="w-3.5 h-3.5 text-[#0066FF]" />
+              <span>Connect Channels</span>
+              <span className="flex items-center gap-1 ml-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span className="text-[10px] text-neutral-500 font-mono">3 Available</span>
               </span>
-              <span className="hover:text-[#0C0C0D] cursor-pointer">
-                Trust Score: <strong className="text-emerald-700">{trustScore.toFixed(1)}% (A+)</strong>
-              </span>
-            </nav>
+            </button>
           </div>
 
           {/* Right Actions & Status */}
           <div className="flex items-center gap-3">
-            {/* Active view toggle pill */}
+            {/* View Mode Switcher Pill */}
             <div className="flex items-center rounded-md bg-[#EFECE6] p-0.5 border border-[#E0DCD4] text-xs">
               <button
                 onClick={() => setViewMode("builder")}
@@ -405,7 +554,7 @@ When reading sensor data:
                 await fetch("/api/demo/seed", { method: "POST" });
                 fetchData();
               }}
-              className="px-2.5 py-1 text-xs text-neutral-700 hover:text-black bg-white border border-[#E0DCD4] rounded shadow-xs hover:bg-neutral-50 flex items-center gap-1.5 transition"
+              className="px-2.5 py-1 text-xs text-neutral-700 hover:text-black bg-white border border-[#E0DCD4] rounded shadow-2xs hover:bg-neutral-50 flex items-center gap-1.5 transition"
               title="Reset initial telemetry, defrost false alarms, and policies"
             >
               <RefreshCw className="w-3 h-3" />
@@ -414,6 +563,304 @@ When reading sensor data:
           </div>
         </div>
       </header>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* MODAL 1: CREATE NEW AGENT                                     */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {showNewAgentModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-[#E6E2DA] max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#E6E2DA] pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded bg-[#FA500F] text-white">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-[#0C0C0D]">Create New Agent</h3>
+              </div>
+              <button
+                onClick={() => setShowNewAgentModal(false)}
+                className="text-neutral-400 hover:text-black"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-neutral-800 block mb-1">Agent Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Pharmacy Vault S3, Freezer Drone, Warehouse Sentinel"
+                  value={newAgentName}
+                  onChange={(e) => setNewAgentName(e.target.value)}
+                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-neutral-800 block mb-1">Short Description</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Environmental monitor for temperature & humidity"
+                  value={newAgentDesc}
+                  onChange={(e) => setNewAgentDesc(e.target.value)}
+                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-neutral-800 block mb-1">Model</label>
+                  <select
+                    value={newAgentModel}
+                    onChange={(e) => setNewAgentModel(e.target.value)}
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs focus:outline-none focus:border-[#FA500F]"
+                  >
+                    <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (Fast)</option>
+                    <option value="mistralai/mistral-large-2407">Mistral Large 2</option>
+                    <option value="mistralai/mistral-nemo">Mistral Nemo (Edge)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-neutral-800 block mb-1">Target Hardware</label>
+                  <input
+                    type="text"
+                    defaultValue="ESP32-S3-DevKitC-1"
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono text-neutral-600"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-neutral-800 block mb-1">System Instructions / Goal</label>
+                <textarea
+                  rows={4}
+                  placeholder="Define how this agent evaluates anomalies and applies safety boundaries..."
+                  value={newAgentPrompt}
+                  onChange={(e) => setNewAgentPrompt(e.target.value)}
+                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E6E2DA]">
+              <button
+                onClick={() => setShowNewAgentModal(false)}
+                className="px-3 py-1.5 rounded text-xs text-neutral-600 hover:text-black"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateAgent}
+                className="px-4 py-2 bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs rounded transition flex items-center gap-1 shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5" /> Instantiate Agent
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* MODAL 2: CONNECT CHANNELS (WHATSAPP, DISCORD, TELEGRAM)       */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {showChannelsModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl border border-[#E6E2DA] max-w-xl w-full p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-[#E6E2DA] pb-3">
+              <div>
+                <h3 className="text-base font-bold text-[#0C0C0D] flex items-center gap-2">
+                  <Share2 className="w-4 h-4 text-[#FA500F]" />
+                  Multi-Channel Messaging Integrations
+                </h3>
+                <p className="text-xs text-neutral-500">
+                  Deliver breach alerts &amp; receive high-risk approvals directly via WhatsApp, Telegram, or Discord.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowChannelsModal(false)}
+                className="text-neutral-400 hover:text-black"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Channel Tabs */}
+            <div className="grid grid-cols-3 gap-2 border-b border-[#E6E2DA] pb-2">
+              <button
+                onClick={() => setChannelTab("whatsapp")}
+                className={`flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded transition ${
+                  channelTab === "whatsapp"
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-300"
+                    : "bg-[#FAF8F5] text-neutral-600 hover:text-black"
+                }`}
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> WhatsApp
+              </button>
+              <button
+                onClick={() => setChannelTab("discord")}
+                className={`flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded transition ${
+                  channelTab === "discord"
+                    ? "bg-indigo-50 text-indigo-700 border border-indigo-300"
+                    : "bg-[#FAF8F5] text-neutral-600 hover:text-black"
+                }`}
+              >
+                <Hash className="w-3.5 h-3.5 text-indigo-600" /> Discord
+              </button>
+              <button
+                onClick={() => setChannelTab("telegram")}
+                className={`flex items-center justify-center gap-1.5 py-2 text-xs font-bold rounded transition ${
+                  channelTab === "telegram"
+                    ? "bg-sky-50 text-sky-700 border border-sky-300"
+                    : "bg-[#FAF8F5] text-neutral-600 hover:text-black"
+                }`}
+              >
+                <Send className="w-3.5 h-3.5 text-sky-600" /> Telegram
+              </button>
+            </div>
+
+            {/* TAB: WHATSAPP */}
+            {channelTab === "whatsapp" && (
+              <div className="space-y-4 text-xs">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="font-bold text-emerald-800">Baileys WhatsApp Socket Ready</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-700">Auto-Approval Enabled</span>
+                </div>
+
+                <div>
+                  <label className="font-bold text-neutral-800 block mb-1">Target Phone Number / Group</label>
+                  <input
+                    type="text"
+                    value={whatsAppRecipient}
+                    onChange={(e) => setWhatsAppRecipient(e.target.value)}
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                  />
+                  <p className="text-[11px] text-neutral-500 mt-1">
+                    When high-risk actions are quarantined, operators can reply <code className="font-bold text-[#FA500F]">APPROVE</code> directly via WhatsApp.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-neutral-900 block">Simulate Outbound WhatsApp Alert</span>
+                    <span className="text-[11px] text-neutral-500">Sends cold-chain temperature telemetry card</span>
+                  </div>
+                  <button
+                    onClick={() => handleTestChannel("whatsapp")}
+                    disabled={isSendingTest}
+                    className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition"
+                  >
+                    Send Test Alert
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: DISCORD */}
+            {channelTab === "discord" && (
+              <div className="space-y-4 text-xs">
+                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+                    <span className="font-bold text-indigo-900">Discord Webhook Dispatcher</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-indigo-700">Embed Formatting Active</span>
+                </div>
+
+                <div>
+                  <label className="font-bold text-neutral-800 block mb-1">Discord Webhook URL</label>
+                  <input
+                    type="text"
+                    placeholder="https://discord.com/api/webhooks/..."
+                    value={discordWebhook}
+                    onChange={(e) => setDiscordWebhook(e.target.value)}
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                  />
+                  <p className="text-[11px] text-neutral-500 mt-1">
+                    Paste your Discord channel webhook to stream real-time temperature graph cards &amp; breaches.
+                  </p>
+                </div>
+
+                <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-neutral-900 block">Dispatch Sample Discord Embed</span>
+                    <span className="text-[11px] text-neutral-500">Includes thermal telemetry and approval token</span>
+                  </div>
+                  <button
+                    onClick={() => handleTestChannel("discord")}
+                    disabled={isSendingTest}
+                    className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition"
+                  >
+                    Test Discord Webhook
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB: TELEGRAM */}
+            {channelTab === "telegram" && (
+              <div className="space-y-4 text-xs">
+                <div className="p-3 bg-sky-50 border border-sky-200 rounded flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+                    <span className="font-bold text-sky-900">Telegram Bot API</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-sky-700">Bidirectional Commands</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-bold text-neutral-800 block mb-1">Bot Token</label>
+                    <input
+                      type="text"
+                      placeholder="123456:ABC-DEF..."
+                      value={telegramToken}
+                      onChange={(e) => setTelegramToken(e.target.value)}
+                      className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-bold text-neutral-800 block mb-1">Chat ID</label>
+                    <input
+                      type="text"
+                      placeholder="@channel or -100123..."
+                      value={telegramChatId}
+                      onChange={(e) => setTelegramChatId(e.target.value)}
+                      className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-neutral-900 block">Dispatch Sample Telegram Message</span>
+                    <span className="text-[11px] text-neutral-500">Test two-way /approve command card</span>
+                  </div>
+                  <button
+                    onClick={() => handleTestChannel("telegram")}
+                    disabled={isSendingTest}
+                    className="px-3 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs transition"
+                  >
+                    Test Telegram Alert
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end pt-3 border-t border-[#E6E2DA]">
+              <button
+                onClick={() => setShowChannelsModal(false)}
+                className="px-4 py-2 bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs rounded transition shadow-xs"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* VIEW 1: MISTRAL AGENT BUILDER STUDIO (WHITE MODE SPLIT)       */}
@@ -430,9 +877,17 @@ When reading sensor data:
                 <span className="text-[11px] font-mono uppercase tracking-wider text-[#FA500F] font-bold flex items-center gap-1.5">
                   <Bot className="w-3.5 h-3.5" /> Agent Blueprint
                 </span>
-                <span className="px-2 py-0.5 text-[10px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-300 rounded font-bold">
-                  ACTIVE • DEPLOYED
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowChannelsModal(true)}
+                    className="px-2 py-0.5 text-[10px] font-bold text-[#0066FF] bg-blue-50 border border-blue-200 rounded flex items-center gap-1 hover:bg-blue-100 transition"
+                  >
+                    <Share2 className="w-3 h-3" /> Channels Active
+                  </button>
+                  <span className="px-2 py-0.5 text-[10px] font-mono bg-emerald-50 text-emerald-700 border border-emerald-300 rounded font-bold">
+                    DEPLOYED
+                  </span>
+                </div>
               </div>
 
               <div>
@@ -462,8 +917,8 @@ When reading sensor data:
                 onChange={(e) => setSelectedModel(e.target.value)}
                 className="w-full bg-[#F7F5F0] border border-[#E6E2DA] text-xs text-[#0C0C0D] rounded p-2 focus:outline-none focus:border-[#FA500F] font-mono"
               >
+                <option value="google/gemini-2.0-flash-001">google/gemini-2.0-flash-001 (Active - Free Tier)</option>
                 <option value="mistralai/mistral-large-2407">mistral-large-2407 (Mistral Large 2)</option>
-                <option value="google/gemini-2.0-flash-001">google/gemini-2.0-flash-001 (Recommended)</option>
                 <option value="mistralai/mistral-nemo">mistral-nemo-12b (Edge Optimized)</option>
               </select>
             </div>
@@ -528,7 +983,7 @@ When reading sensor data:
                   {
                     key: "send_notification",
                     name: "send_notification()",
-                    desc: "Multi-channel alerts (Telegram / WhatsApp / UI)",
+                    desc: "Multi-channel alerts (Telegram / WhatsApp / Discord)",
                     risk: "MED",
                     riskColor: "bg-amber-50 text-amber-800 border-amber-300",
                   },
@@ -677,7 +1132,7 @@ When reading sensor data:
               </div>
             </div>
 
-            {/* Quick Test Injections Banner (Mistral Style White Pills) */}
+            {/* Quick Test Injections Banner */}
             <div className="p-3 border-b border-[#E6E2DA] bg-[#FAF8F5] flex flex-wrap items-center gap-2 text-xs">
               <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 font-bold mr-1">
                 Inject Scenario:
@@ -708,7 +1163,7 @@ When reading sensor data:
               </button>
             </div>
 
-            {/* Content for Arena Tab 1: Chat Stream (White Mode) */}
+            {/* Content for Arena Tab 1: Chat Stream */}
             {arenaTab === "chat" && (
               <div className="flex-1 flex flex-col justify-between overflow-hidden bg-white">
                 {/* Message Log */}
@@ -774,7 +1229,7 @@ When reading sensor data:
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                      placeholder="Prompt the agent e.g., 'Evaluate container COLD-01 status at 02:00 UTC'..."
+                      placeholder={`Prompt ${agentName} e.g., 'Evaluate container COLD-01 status at 02:00 UTC'...`}
                       className="flex-1 bg-white border border-[#E0DCD4] rounded-lg px-3.5 py-2.5 text-xs text-[#0C0C0D] placeholder:text-neutral-400 focus:outline-none focus:border-[#FA500F] font-mono shadow-xs"
                     />
                     <button
@@ -803,7 +1258,7 @@ When reading sensor data:
                   </p>
                 </div>
 
-                {/* The OLED frame (Hardware stays authentic black display on white desk) */}
+                {/* The OLED frame */}
                 <div className="p-4 rounded-xl bg-[#111319] border-4 border-neutral-800 shadow-2xl">
                   <div className="w-[300px] h-[150px] bg-[#020508] border border-cyan-900 rounded p-3 font-mono text-cyan-300 flex flex-col justify-between select-none">
                     <div className="bg-cyan-300 text-black px-1 py-0.5 text-[10px] font-bold flex justify-between">
@@ -955,12 +1410,20 @@ When reading sensor data:
                     Autonomous agent workflows with real-time episodic reflection and deterministic guardrails.
                   </p>
                 </div>
-                <button
-                  onClick={() => setViewMode("builder")}
-                  className="px-6 py-3 rounded bg-white hover:bg-neutral-100 text-[#0066FF] font-bold text-sm shadow-md transition flex items-center gap-2 shrink-0"
-                >
-                  Open Studio Builder <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-3 shrink-0">
+                  <button
+                    onClick={() => setShowNewAgentModal(true)}
+                    className="px-5 py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-md transition flex items-center gap-1.5"
+                  >
+                    <Plus className="w-4 h-4" /> Create Agent
+                  </button>
+                  <button
+                    onClick={() => setViewMode("builder")}
+                    className="px-6 py-3 rounded bg-white hover:bg-neutral-100 text-[#0066FF] font-bold text-sm shadow-md transition flex items-center gap-2"
+                  >
+                    Open Studio Builder <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1012,16 +1475,16 @@ When reading sensor data:
             <div className="space-y-6">
               <div>
                 <h2 className="text-3xl sm:text-4xl font-mistral-display tracking-tight text-[#0C0C0D]">
-                  Sensors.
+                  Sensors &amp; Multi-Channel.
                 </h2>
                 <p className="text-neutral-600 text-sm mt-1">
-                  Connect physical microcontrollers and edge hardware directly into the agent feedback loop.
+                  Connect physical microcontrollers and messaging channels (WhatsApp, Discord, Telegram) directly into the agent feedback loop.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="mistral-card-blue p-6 rounded-lg text-white space-y-4 shadow-md">
-                  <h3 className="text-xl font-bold">ESP32-S3 DevKitC-1 Telemetry</h3>
+                  <h3 className="text-xl font-bold">ESP32-S3 Microcontroller</h3>
                   <p className="text-xs text-white/90 leading-relaxed">
                     Sub-second HTTP telemetry streams directly into the anomaly detection engine. If a thermal breach exceeds -10°C, the agent initiates emergency response.
                   </p>
@@ -1038,6 +1501,19 @@ When reading sensor data:
                   <div className="p-3 rounded bg-[#FAF8F5] font-mono text-xs text-neutral-700 border border-[#EAE6DE]">
                     Live Status: -18.4°C • NOMINAL • COM4 ONLINE
                   </div>
+                </div>
+
+                <div className="p-6 rounded-lg border border-[#E6E2DA] bg-white shadow-sm space-y-4">
+                  <h3 className="text-xl font-bold text-[#0C0C0D]">WhatsApp &amp; Discord Gateway</h3>
+                  <p className="text-xs text-neutral-600 leading-relaxed">
+                    Two-way messaging allows operators to receive formatted alert cards and approve high-risk commands remotely via chat.
+                  </p>
+                  <button
+                    onClick={() => setShowChannelsModal(true)}
+                    className="w-full py-2 bg-[#FA500F] hover:bg-[#ff6422] text-white text-xs font-bold rounded transition"
+                  >
+                    Configure Messaging Channels
+                  </button>
                 </div>
               </div>
             </div>
@@ -1096,12 +1572,20 @@ When reading sensor data:
                   graVITas Hackathon MVP • Autonomous Self-Learning &amp; Hardware Guardrail Agent Platform
                 </p>
               </div>
-              <button
-                onClick={() => setViewMode("builder")}
-                className="px-6 py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-lg transition shrink-0"
-              >
-                Launch Studio Builder
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowNewAgentModal(true)}
+                  className="px-5 py-3 rounded bg-white hover:bg-neutral-100 text-[#0C0C0D] font-bold text-xs uppercase tracking-wider shadow-md transition"
+                >
+                  + New Agent
+                </button>
+                <button
+                  onClick={() => setViewMode("builder")}
+                  className="px-6 py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-lg transition"
+                >
+                  Launch Studio Builder
+                </button>
+              </div>
             </div>
 
             {/* Footer with Iconic Mistral Pixel Logo Mark */}
