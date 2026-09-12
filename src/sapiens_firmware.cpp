@@ -54,6 +54,7 @@ float currentHumidity = 82.0;
 bool doorOpen = false;
 bool alarmActive = false;
 bool policySuppressed = false;
+bool buzzerBeeping = false;
 unsigned long lastSensorReadTime = 0;
 unsigned long lastTelemetrySendTime = 0;
 unsigned long lastBuzzerToggleTime = 0;
@@ -61,12 +62,24 @@ bool buzzerState = false;
 int packetCount = 0;
 
 // ═══════════════════════════════════════════════════════
-// PIEZO BUZZER FEEDBACK
+// DUAL ACTIVE & PASSIVE PIEZO BUZZER DRIVER
 // ═══════════════════════════════════════════════════════
-void beep(int freq, int durationMs) {
-  tone(BUZZER_PIN, freq, durationMs);
-  delay(durationMs);
+void soundBuzzer(int freq = 2400) {
+  buzzerBeeping = true;
+  tone(BUZZER_PIN, freq);
+  digitalWrite(BUZZER_PIN, HIGH);
+}
+
+void silenceBuzzer() {
+  buzzerBeeping = false;
   noTone(BUZZER_PIN);
+  digitalWrite(BUZZER_PIN, LOW);
+}
+
+void beep(int freq, int durationMs) {
+  soundBuzzer(freq);
+  delay(durationMs);
+  silenceBuzzer();
 }
 
 // ═══════════════════════════════════════════════════════
@@ -80,8 +93,8 @@ void updateOLED() {
     display.fillRect(0, 0, SCREEN_WIDTH, 12, SSD1306_WHITE);
     display.setTextColor(SSD1306_BLACK);
     display.setTextSize(1);
-    display.setCursor(6, 2);
-    display.print("! THERMAL BREACH !");
+    display.setCursor(4, 2);
+    display.print("! SIREN: ALARM ON !");
   } else if (policySuppressed) {
     display.fillRect(0, 0, SCREEN_WIDTH, 12, SSD1306_WHITE);
     display.setTextColor(SSD1306_BLACK);
@@ -100,16 +113,18 @@ void updateOLED() {
 
   // 2. Large Temperature Readout
   display.setTextSize(2);
-  display.setCursor(4, 18);
+  display.setCursor(4, 16);
   display.printf("%+.1f C", currentTemp);
 
-  // 3. Humidity & Door Status
+  // 3. Humidity & Buzzer Indicator
   display.setTextSize(1);
-  display.setCursor(4, 38);
+  display.setCursor(4, 36);
   display.printf("HUM: %.1f%%", currentHumidity);
 
-  display.setCursor(76, 38);
-  if (doorOpen) {
+  display.setCursor(72, 36);
+  if (buzzerBeeping) {
+    display.print("[BUZZ:ON]");
+  } else if (doorOpen) {
     display.print("[OPEN]");
   } else {
     display.print("[SEALED]");
@@ -187,10 +202,16 @@ void setup() {
 
   pinMode(BUZZER_PIN, OUTPUT);
   pinMode(BUTTON_TEST_PIN, INPUT_PULLUP);
-  digitalWrite(BUZZER_PIN, LOW);
+  silenceBuzzer();
 
-  // Initial welcome chirp
-  beep(2000, 80);
+  // Test Buzzer on Boot (3 distinct audible test beeps)
+  Serial.println("Testing buzzer on GPIO 5...");
+  for (int b = 0; b < 3; b++) {
+    soundBuzzer(2000 + (b * 300));
+    delay(140);
+    silenceBuzzer();
+    delay(80);
+  }
 
   // Initialize I2C OLED (SSD1306 on GPIO 8 & 9)
   Wire.begin(OLED_SDA_PIN, OLED_SCL_PIN);
@@ -240,10 +261,13 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  // 1. Check BOOT Button (Hold to trigger test breach & siren)
-  if (digitalRead(BUTTON_TEST_PIN) == LOW) {
-    currentTemp = -8.2; // Critical high temperature above -10°C threshold
+  // 1. Check BOOT Button (Hold to trigger instant test breach & siren)
+  bool buttonPressed = (digitalRead(BUTTON_TEST_PIN) == LOW);
+  if (buttonPressed) {
+    currentTemp = -8.2; // Critical thermal breach above threshold
     doorOpen = true;
+    alarmActive = true;
+    policySuppressed = false;
   }
 
   // 2. Read Physical DHT Sensor Every 2 Seconds
@@ -266,10 +290,11 @@ void loop() {
     sendTelemetryToAgent();
 
     // Auto-recover test breach if button is released
-    if (digitalRead(BUTTON_TEST_PIN) == HIGH) {
+    if (!buttonPressed) {
       doorOpen = false;
       if (currentTemp > -12.0 && isnan(dht.readTemperature())) {
         currentTemp = -18.2;
+        alarmActive = false;
       }
     }
   }
@@ -280,13 +305,13 @@ void loop() {
       lastBuzzerToggleTime = now;
       buzzerState = !buzzerState;
       if (buzzerState) {
-        tone(BUZZER_PIN, 2400);
+        soundBuzzer(2400);
       } else {
-        noTone(BUZZER_PIN);
+        silenceBuzzer();
       }
     }
   } else {
-    noTone(BUZZER_PIN);
+    silenceBuzzer();
   }
 
   // 5. Update OLED Display (~20 FPS)
