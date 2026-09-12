@@ -74,6 +74,7 @@ export async function POST(req: Request) {
       instructions = "",
       model = "sapiens-frontier-nemo",
       tools = ["get_sensor_data", "query_memory", "send_notification"],
+      metadata = {},
     } = body;
 
     if (!name) {
@@ -114,7 +115,10 @@ export async function POST(req: Request) {
       model,
       tools,
       status: "active",
-      metadata: remoteAgentId ? { remoteAgentId } : {},
+      metadata: {
+        ...metadata,
+        ...(remoteAgentId ? { remoteAgentId } : {}),
+      },
     };
 
     // Store in-memory immediately so it's always returned in GET

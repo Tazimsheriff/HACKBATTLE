@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { db } from "@/db/client";
-import { agentRuns, runSteps } from "@/db/schema";
+import { agents, agentRuns, runSteps } from "@/db/schema";
+import { eq } from "drizzle-orm";
 import { getPromptInjectedPolicies } from "@/learning/policies";
 
 export async function POST(
@@ -72,28 +73,67 @@ export async function POST(
       },
     ];
 
-    // Query live agent engine if key is present
-    if (process.env.MISTRAL_API_KEY) {
+    const userApiKey = body.apiKey?.trim();
+    let agentMetadata: any = {};
+    try {
+      const [dbAgent] = await db.select().from(agents).where(eq(agents.id, id));
+      if ((dbAgent as any)?.metadata) {
+        agentMetadata = (dbAgent as any).metadata;
+      }
+    } catch (e) {}
+
+    const effectiveKey = userApiKey || agentMetadata.apiKey || process.env.MISTRAL_API_KEY || process.env.GEMINI_API_KEY;
+
+    // Query live agent engine (BYOK Key or Platform Tier)
+    if (effectiveKey) {
       try {
-        const mistralRes = await fetch("https://api.mistral.ai/v1/agents/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            agent_id: "ag_01a0946bfb2270a89d6471222bbd2bed",
-            messages: [
-              {
-                role: "user",
-                content: `Task: ${input}\nTelemetry: Temp -14.2°C, Humidity 86.4%, Door Closed.\nActive Policies: ${activePoliciesMarkdown}\nSynthesize concise operational report.`,
-              },
-            ],
-          }),
-        });
-        const mistralData = await mistralRes.json();
-        if (mistralData.choices?.[0]?.message?.content) {
-          traceSteps[5].content = mistralData.choices[0].message.content;
+        if (effectiveKey.startsWith("AIzaSy")) {
+          // Google Gemini execution
+          const geminiRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${effectiveKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "gemini-2.0-flash",
+              messages: [
+                {
+                  role: "user",
+                  content: `Task: ${input}\nTelemetry: Temp -14.2°C, Humidity 86.4%, Door Closed.\nActive Policies: ${activePoliciesMarkdown}\nSynthesize concise operational report.`,
+                },
+              ],
+            }),
+          });
+          const gData = await geminiRes.json();
+          if (gData.choices?.[0]?.message?.content) {
+            traceSteps[5].content = gData.choices[0].message.content;
+          }
+        } else {
+          // OpenAI-compatible / Platform execution
+          const targetUrl = agentMetadata.endpoint
+            ? `${agentMetadata.endpoint.replace(/\/$/, "")}/chat/completions`
+            : "https://api.mistral.ai/v1/chat/completions";
+          const res = await fetch(targetUrl, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${effectiveKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: agentMetadata.endpoint ? "gpt-4o" : "open-mistral-nemo",
+              messages: [
+                {
+                  role: "user",
+                  content: `Task: ${input}\nTelemetry: Temp -14.2°C, Humidity 86.4%, Door Closed.\nActive Policies: ${activePoliciesMarkdown}\nSynthesize concise operational report.`,
+                },
+              ],
+            }),
+          });
+          const resData = await res.json();
+          if (resData.choices?.[0]?.message?.content) {
+            traceSteps[5].content = resData.choices[0].message.content;
+          }
         }
       } catch (mErr) {
         console.warn("Agent completion fallback:", mErr);

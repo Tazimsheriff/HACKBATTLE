@@ -18,17 +18,39 @@ export async function POST(req: Request) {
       ? `This agent is bound to physical hardware device: "${hardwareDeviceId}". Include appropriate hardware telemetry and actuator safety rules.`
       : `This agent is a SOFTWARE / CLOUD agent. DO NOT include microcontrollers, ESP32, or physical hardware instructions unless explicitly asked.`;
 
-    // Attempt generation with frontier AI if key is available
-    if (process.env.MISTRAL_API_KEY) {
+    const userApiKey = body.apiKey?.trim();
+    const userEndpoint = body.endpoint?.trim();
+    const requestedModel = body.model || "open-mistral-nemo";
+
+    const effectiveKey = userApiKey || process.env.MISTRAL_API_KEY || process.env.GEMINI_API_KEY;
+
+    // Attempt generation with frontier AI (User BYOK Key or Platform Tier)
+    if (effectiveKey) {
       try {
-        const mistralRes = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        let endpointUrl = "https://api.mistral.ai/v1/chat/completions";
+        let targetModel = "open-mistral-nemo";
+
+        if (userEndpoint) {
+          endpointUrl = userEndpoint.endsWith("/chat/completions")
+            ? userEndpoint
+            : `${userEndpoint.replace(/\/$/, "")}/chat/completions`;
+          targetModel = requestedModel === "custom-llm" ? "gpt-4o" : requestedModel;
+        } else if (effectiveKey.startsWith("AIzaSy")) {
+          endpointUrl = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+          targetModel = "gemini-2.0-flash";
+        } else if (effectiveKey.startsWith("sk-proj-") || requestedModel.includes("gpt")) {
+          endpointUrl = "https://api.openai.com/v1/chat/completions";
+          targetModel = "gpt-4o";
+        }
+
+        const aiRes = await fetch(endpointUrl, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
+            Authorization: `Bearer ${effectiveKey}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            model: "open-mistral-nemo",
+            model: targetModel,
             temperature: 0.2,
             messages: [
               {
@@ -44,7 +66,7 @@ export async function POST(req: Request) {
           }),
         });
 
-        const data = await mistralRes.json();
+        const data = await aiRes.json();
         const generatedPrompt = data.choices?.[0]?.message?.content;
         if (generatedPrompt && generatedPrompt.length > 30) {
           return NextResponse.json({ success: true, prompt: generatedPrompt });

@@ -25,6 +25,10 @@ import {
   Code2,
   CheckCircle2,
   Info,
+  Key,
+  Eye,
+  EyeOff,
+  Server,
 } from "lucide-react";
 import { AgentSkill, SKILLS_SH_CATALOG } from "@/skills/registry";
 
@@ -35,8 +39,13 @@ export default function CreateAgentPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [goal, setGoal] = useState("");
-  const [model, setModel] = useState("open-mistral-nemo");
+  const [model, setModel] = useState("sapiens-frontier-nemo");
   const [temperature, setTemperature] = useState(0.2);
+
+  // BYOK (Bring Your Own API Key)
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [customEndpoint, setCustomEndpoint] = useState("");
 
   // Hardware binding (completely optional)
   const [hasHardware, setHasHardware] = useState(false);
@@ -84,8 +93,15 @@ export default function CreateAgentPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch Skills on Mount
+  // Fetch Skills & Saved BYOK Key on Mount
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedKey = localStorage.getItem("sapiens_custom_api_key");
+      if (savedKey) setCustomApiKey(savedKey);
+      const savedEndpoint = localStorage.getItem("sapiens_custom_endpoint");
+      if (savedEndpoint) setCustomEndpoint(savedEndpoint);
+    }
+
     fetch("/api/skills")
       .then((res) => res.json())
       .then((data) => {
@@ -113,6 +129,9 @@ export default function CreateAgentPage() {
           description: description || "Autonomous workflow assistant",
           hasHardware,
           hardwareDeviceId: hasHardware ? hardwareDeviceId : "",
+          apiKey: customApiKey.trim() || undefined,
+          endpoint: customEndpoint.trim() || undefined,
+          model,
         }),
       });
 
@@ -177,6 +196,9 @@ export default function CreateAgentPage() {
         body: JSON.stringify({
           prompt: customSkillPrompt || description,
           mission: description,
+          apiKey: customApiKey.trim() || undefined,
+          endpoint: customEndpoint.trim() || undefined,
+          model,
         }),
       });
 
@@ -345,6 +367,8 @@ export default function CreateAgentPage() {
           metadata: {
             hasHardware,
             hardwareDeviceId: hasHardware ? hardwareDeviceId : null,
+            apiKey: customApiKey.trim() || null,
+            endpoint: customEndpoint.trim() || null,
           },
         }),
       });
@@ -605,11 +629,25 @@ export default function CreateAgentPage() {
             </div>
           </div>
 
-          {/* Section 2: Model & Reasoning */}
-          <div className="p-6 rounded-xl bg-white border border-[#E6E2DA] shadow-xs space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-[#0066FF] font-mono flex items-center gap-2">
-              <Cpu className="w-4 h-4" /> 2. Intelligence &amp; Reasoning Core
-            </h2>
+          {/* Section 2: Model & Reasoning & BYOK */}
+          <div className="p-6 rounded-xl bg-white border border-[#E6E2DA] shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-[#0066FF] font-mono flex items-center gap-2">
+                <Cpu className="w-4 h-4" /> 2. Intelligence &amp; Reasoning Core
+              </h2>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5 transition ${
+                    customApiKey.trim()
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                      : "bg-blue-50 text-[#0066FF] border-blue-200"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${customApiKey.trim() ? "bg-emerald-500 animate-pulse" : "bg-[#0066FF]"}`} />
+                  {customApiKey.trim() ? "⚡ Custom API Key Active (BYOK)" : "🟢 Platform Free Tier Active"}
+                </span>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div className="space-y-1">
@@ -619,10 +657,13 @@ export default function CreateAgentPage() {
                   onChange={(e) => setModel(e.target.value)}
                   className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
                 >
-                  <option value="open-mistral-nemo">sapiens-frontier-nemo (Sapiens Frontier • Free Tier • Recommended)</option>
-                  <option value="codestral-latest">sapiens-code-latest (Sapiens Code &amp; Logic)</option>
-                  <option value="mistral-small-latest">sapiens-small-latest (Sapiens Fast Tier)</option>
-                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001 (Fast Fallback)</option>
+                  <option value="sapiens-frontier-nemo">sapiens-frontier-nemo (Sapiens Frontier • Free Tier • Recommended)</option>
+                  <option value="sapiens-code-latest">sapiens-code-latest (Sapiens Code &amp; Logic)</option>
+                  <option value="sapiens-small-latest">sapiens-small-latest (Sapiens Fast Tier)</option>
+                  <option value="google/gemini-2.0-flash-001">gemini-2.0-flash-001 (Google Gemini)</option>
+                  <option value="openai/gpt-4o">gpt-4o (OpenAI GPT-4o)</option>
+                  <option value="anthropic/claude-3-5-sonnet">claude-3-5-sonnet (Anthropic Claude)</option>
+                  <option value="custom-llm">custom-llm (Custom OpenAI-Compatible Endpoint)</option>
                 </select>
               </div>
 
@@ -641,6 +682,90 @@ export default function CreateAgentPage() {
                   className="w-full accent-[#FA500F] cursor-pointer mt-2"
                 />
               </div>
+            </div>
+
+            {/* BYOK: Bring Your Own API Key Container */}
+            <div className="p-4 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-[#FA500F]" />
+                  <span>Bring Your Own API Key (BYOK)</span>
+                </label>
+                <span className="text-[10px] font-mono text-neutral-500">
+                  Optional • Leave blank to use platform tier
+                </span>
+              </div>
+
+              <div className="relative flex items-center">
+                <input
+                  type={showApiKey ? "text" : "password"}
+                  value={customApiKey}
+                  onChange={(e) => {
+                    setCustomApiKey(e.target.value);
+                    if (typeof window !== "undefined") {
+                      localStorage.setItem("sapiens_custom_api_key", e.target.value);
+                    }
+                  }}
+                  placeholder="Paste your private API key (e.g. sk-proj-..., AIzaSy..., or custom token)"
+                  className="w-full bg-white border border-[#E0DCD4] rounded-lg pl-3 pr-20 py-2.5 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
+                />
+                <div className="absolute right-2 flex items-center gap-1">
+                  {customApiKey && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomApiKey("");
+                        if (typeof window !== "undefined") {
+                          localStorage.removeItem("sapiens_custom_api_key");
+                        }
+                      }}
+                      className="px-1.5 py-0.5 text-[10px] text-neutral-400 hover:text-rose-600 font-mono transition cursor-pointer"
+                      title="Clear Key"
+                    >
+                      Clear
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="p-1 text-neutral-400 hover:text-neutral-700 transition cursor-pointer"
+                    title={showApiKey ? "Hide Key" : "Show Key"}
+                  >
+                    {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-1.5 text-[11px] text-neutral-500">
+                <Info className="w-3.5 h-3.5 shrink-0 text-[#FA500F] mt-0.5" />
+                <span>
+                  Provide your own API key to bypass shared rate limits, use private enterprise keys, or access custom model providers. Keys are stored safely in local browser storage and used for instructions generation, skill synthesis, and runtime execution.
+                </span>
+              </div>
+
+              {model === "custom-llm" && (
+                <div className="pt-2 border-t border-[#EAE6DE] space-y-1.5">
+                  <label className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
+                    <Server className="w-3.5 h-3.5 text-[#0066FF]" />
+                    <span>Custom API Base URL (OpenAI-compatible)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customEndpoint}
+                    onChange={(e) => {
+                      setCustomEndpoint(e.target.value);
+                      if (typeof window !== "undefined") {
+                        localStorage.setItem("sapiens_custom_endpoint", e.target.value);
+                      }
+                    }}
+                    placeholder="https://api.openai.com/v1 or http://localhost:11434/v1"
+                    className="w-full bg-white border border-[#E0DCD4] rounded-lg p-2.5 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
+                  />
+                  <p className="text-[10px] text-neutral-400 font-mono">
+                    Target any OpenAI-compatible server: Ollama, vLLM, LM Studio, Groq, or OpenRouter.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
