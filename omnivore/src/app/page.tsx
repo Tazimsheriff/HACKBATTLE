@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   Shield,
   Activity,
-  Brain,
   Cpu,
   AlertTriangle,
   CheckCircle2,
