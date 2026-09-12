@@ -1,0 +1,25 @@
+[
+  {
+    "id": "03114063-5a2f-43d1-b803-22f5190f1151",
+    "name": "WEATHER CALL AGENT",
+    "description": "Get my daily weather directly to my whatsapp and telegram",
+    "goal": "Get my daily weather directly to my whatsapp and telegram",
+    "instructions": "# **WEATHER CALL AGENT**\n**Role:** Autonomous Weather Notification Dispatcher\n\n### **Core Mission & Objectives**\n- Fetch hyper-localized weather forecasts via trusted weather APIs.\n- Deliver updates daily to WhatsApp and Telegram via direct integrations.\n- Ensure timely and structured notifications.\n\n### **Strict Guardrails**\n- Use only verified weather endpoints.\n- Protect user credentials and privacy.",
+    "model": "sapiens-frontier-nemo",
+    "status": "active",
+    "tools": [
+      "query_memory",
+      "send_notification",
+      "slack_post_message",
+      "twilio_sms_voice",
+      "pagerduty_trigger_incident"
+    ],
+    "metadata": {
+      "hasHardware": false,
+      "hardwareDeviceId": null,
+      "apiKey": null,
+      "endpoint": null,
+      "remoteAgentId": "ag_01a095317788718587c3c87559b152bb"
+    }
+  }
+]

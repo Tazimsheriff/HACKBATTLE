@@ -1,66 +1,18 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db/client";
 import { agents } from "@/db/schema";
-import { desc } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
-
-export const initialAgents = [
-  {
-    id: "sapiens-cold-chain",
-    name: "Cold-Chain Guardian",
-    description: "Autonomous medical storage monitor with continuous self-learning defrost adaptation and hardware guardrails.",
-    goal: "Safeguard vaccine container COLD-01 at -18°C and suppress false alarms.",
-    instructions: "Safeguard vaccine containers. Check past experiences for defrost cycles. Strictly require human approval for hardware cutoffs.",
-    model: "sapiens-frontier-nemo",
-    status: "active",
-    tools: ["get_sensor_data", "query_memory", "send_notification", "emergency_compressor_cutoff"],
-  },
-  {
-    id: "sapiens-autonomous-sentinel",
-    name: "Sapiens Autonomous Sentinel",
-    description: "Frontier autonomous agent with continuous episodic learning, multi-channel dispatch, and safety guardrails.",
-    goal: "Safeguard operations with autonomous adaptation and deterministic human-in-the-loop boundaries.",
-    instructions: "You are SAPIENS Autonomous Sentinel. Monitor operations, cross-reference past episodic experiences, and enforce strict execution boundaries.",
-    model: "sapiens-frontier-nemo",
-    status: "active",
-    tools: ["get_sensor_data", "query_memory", "send_notification", "emergency_compressor_cutoff"],
-  },
-  {
-    id: "pharmacy-vault-s3",
-    name: "Pharmacy Vault S3",
-    description: "Multi-sensor environmental monitor for temperature, humidity, and door aperture.",
-    goal: "Maintain pharma storage humidity under 60% and temperature between 2°C and 8°C.",
-    instructions: "Monitor refrigerated medications. Alert on door breaches lasting > 45 seconds.",
-    model: "sapiens-code-latest",
-    status: "active",
-    tools: ["get_sensor_data", "send_notification"],
-  },
-];
-
-// In-memory runtime cache so created agents persist reliably in demo/local mode
-const inMemoryAgentsStore = [...initialAgents];
+import { getAllAgents, saveDiskAgent, AgentRecord } from "@/storage/agents";
 
 export async function GET() {
   try {
-    const dbAgents = await db.select().from(agents).orderBy(desc(agents.createdAt));
-    const merged = [...inMemoryAgentsStore];
-    for (const dba of dbAgents) {
-      if (!merged.some((a) => a.id === dba.id)) {
-        merged.push({
-          id: dba.id,
-          name: dba.name,
-          description: dba.description || "",
-          goal: dba.goal || "",
-          instructions: dba.instructions || "",
-          model: dba.model,
-          status: (dba.status as "active" | "paused" | "archived") || "active",
-          tools: Array.isArray(dba.tools) ? (dba.tools as string[]) : [],
-        });
-      }
-    }
-    return NextResponse.json({ success: true, agents: merged });
+    const list = await getAllAgents();
+    return NextResponse.json({ success: true, agents: list });
   } catch (err) {
-    return NextResponse.json({ success: true, agents: inMemoryAgentsStore });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Failed to fetch agents" },
+      { status: 500 }
+    );
   }
 }
 
@@ -106,7 +58,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const newAgent = {
+    const newAgent: AgentRecord = {
       id: uuidv4(),
       name,
       description,
@@ -121,13 +73,14 @@ export async function POST(req: Request) {
       },
     };
 
-    // Store in-memory immediately so it's always returned in GET
-    inMemoryAgentsStore.unshift(newAgent);
+    // 1. Permanently persist to data/agents.json on disk
+    saveDiskAgent(newAgent);
 
+    // 2. Also try DB insert if available
     try {
-      await db.insert(agents).values(newAgent);
+      await db.insert(agents).values(newAgent as any);
     } catch (dbErr) {
-      // Memory fallback for demo mode
+      // Disk storage is primary fallback
     }
 
     return NextResponse.json({ success: true, agent: newAgent });

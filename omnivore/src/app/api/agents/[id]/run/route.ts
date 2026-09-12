@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { agents, agentRuns, runSteps } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { getPromptInjectedPolicies } from "@/learning/policies";
+import { getAgentById } from "@/storage/agents";
 
 export async function POST(
   req: Request,
@@ -31,6 +32,18 @@ export async function POST(
         if (!dbAgentInstructions) dbAgentInstructions = dbAgent.instructions || "";
       }
     } catch (e) {}
+
+    // If DB didn't find it, check persistent disk storage
+    if (!dbAgentName) {
+      try {
+        const diskAgent = await getAgentById(id);
+        if (diskAgent) {
+          dbAgentName = diskAgent.name;
+          dbAgentInstructions = diskAgent.instructions || "";
+          agentMetadata = diskAgent.metadata || {};
+        }
+      } catch (e) {}
+    }
 
     const isHardware = Boolean(
       body.isHardware === true ||

@@ -261,6 +261,32 @@ const INTEGRATIONS_SHOWCASE = [
   },
 ];
 
+const DEFAULT_STUDIO_AGENTS: AgentItem[] = [
+  {
+    id: "sapiens-cold-chain",
+    name: "Cold-Chain Guardian",
+    description: "Autonomous medical storage monitor with continuous self-learning defrost adaptation and hardware guardrails.",
+    goal: "Safeguard vaccine container COLD-01 at -18°C and suppress false alarms.",
+    instructions: `You are the SAPIENS Cold-Chain Agent. Your goal is to safeguard vaccine temperature containers at -18°C.
+When reading sensor data:
+1. Cross-reference temperature spikes against past episodic experiences.
+2. If the anomaly matches known defrost routines (02:00 UTC), hold alarms.
+3. If genuine breach > -10°C occurs, trigger emergency notification.
+4. Any physical hardware cutoff requires strict human authorization.`,
+    model: "google/gemini-2.0-flash-001",
+    tools: ["get_sensor_data", "query_memory", "send_notification", "emergency_compressor_cutoff"],
+  },
+  {
+    id: "pharmacy-vault-s3",
+    name: "Pharmacy Vault S3",
+    description: "Multi-sensor environmental monitor for temperature, humidity, and door aperture.",
+    goal: "Maintain pharma storage humidity under 60% and temperature between 2°C and 8°C.",
+    instructions: "Monitor refrigerated medications. Alert on door breaches lasting > 45 seconds.",
+    model: "sapiens/frontier-reasoning",
+    tools: ["get_sensor_data", "send_notification"],
+  },
+];
+
 export default function SapiensAgentStudio() {
   // Top view mode: "builder" (Sapiens Agent Builder Studio) vs "showcase" (Sapiens Frontier Landing)
   const [viewMode, setViewMode] = useState<"builder" | "showcase">("builder");
@@ -270,33 +296,32 @@ export default function SapiensAgentStudio() {
   const [channelTab, setChannelTab] = useState<"whatsapp" | "discord" | "telegram">("whatsapp");
   const [channelToast, setChannelToast] = useState<string | null>(null);
 
-  // Agents list
-  const [agentsList, setAgentsList] = useState<AgentItem[]>([
-    {
-      id: "sapiens-cold-chain",
-      name: "Cold-Chain Guardian",
-      description: "Autonomous medical storage monitor with continuous self-learning defrost adaptation and hardware guardrails.",
-      goal: "Safeguard vaccine container COLD-01 at -18°C and suppress false alarms.",
-      instructions: `You are the SAPIENS Cold-Chain Agent. Your goal is to safeguard vaccine temperature containers at -18°C.
-When reading sensor data:
-1. Cross-reference temperature spikes against past episodic experiences.
-2. If the anomaly matches known defrost routines (02:00 UTC), hold alarms.
-3. If genuine breach > -10°C occurs, trigger emergency notification.
-4. Any physical hardware cutoff requires strict human authorization.`,
-      model: "google/gemini-2.0-flash-001",
-      tools: ["get_sensor_data", "query_memory", "send_notification", "emergency_compressor_cutoff"],
-    },
-    {
-      id: "pharmacy-vault-s3",
-      name: "Pharmacy Vault S3",
-      description: "Multi-sensor environmental monitor for temperature, humidity, and door aperture.",
-      goal: "Maintain pharma storage humidity under 60% and temperature between 2°C and 8°C.",
-      instructions: "Monitor refrigerated medications. Alert on door breaches lasting > 45 seconds.",
-      model: "sapiens/frontier-reasoning",
-      tools: ["get_sensor_data", "send_notification"],
-    },
-  ]);
-  const [selectedAgentId, setSelectedAgentId] = useState("sapiens-cold-chain");
+  // Agents list - initialized immediately from localStorage so custom agents are NEVER lost on refresh!
+  const [agentsList, setAgentsList] = useState<AgentItem[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const local = JSON.parse(localStorage.getItem("sapiens_custom_agents") || "[]");
+        if (Array.isArray(local) && local.length > 0) {
+          const defaultIds = new Set(DEFAULT_STUDIO_AGENTS.map((d) => d.id));
+          const customOnly = local.filter((a: any) => !defaultIds.has(a.id));
+          return [...customOnly, ...DEFAULT_STUDIO_AGENTS];
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_STUDIO_AGENTS;
+  });
+
+  // Selected agent ID - initialized from URL query or localStorage so refresh preserves the user's active agent!
+  const [selectedAgentId, setSelectedAgentId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const queryId = urlParams.get("agentId");
+      if (queryId) return queryId;
+      const storedId = localStorage.getItem("sapiens_active_agent_id");
+      if (storedId) return storedId;
+    }
+    return "sapiens-cold-chain";
+  });
 
   // Channels Form
   const [discordWebhook, setDiscordWebhook] = useState("");
@@ -617,6 +642,21 @@ When reading sensor data:
                 const extra = local.filter((a: any) => !apiIds.has(a.id));
                 list = [...extra, ...d.agents];
               }
+              // Keep localStorage updated with any disk/DB custom agents
+              const customFromApi = d.agents.filter(
+                (a: any) => a.id !== "sapiens-cold-chain" && a.id !== "pharmacy-vault-s3" && a.id !== "sapiens-autonomous-sentinel"
+              );
+              if (customFromApi.length) {
+                const mergedCustom = [...customFromApi];
+                if (local.length) {
+                  for (const l of local) {
+                    if (!mergedCustom.some((c) => c.id === l.id)) {
+                      mergedCustom.push(l);
+                    }
+                  }
+                }
+                localStorage.setItem("sapiens_custom_agents", JSON.stringify(mergedCustom));
+              }
             } catch (e) {}
           }
           setAgentsList(list);
@@ -646,6 +686,15 @@ When reading sensor data:
               setAgentDesc(ag.description || "");
               setSelectedModel(ag.model);
               setSystemPrompt(ag.instructions || "");
+              if (typeof window !== "undefined") {
+                localStorage.setItem("sapiens_active_agent_id", ag.id);
+              }
+              setMessages((prev) => {
+                if (prev.length <= 1) {
+                  return [{ role: "assistant", content: getGreetingForAgent(ag) }];
+                }
+                return prev;
+              });
             }
           }
         }
