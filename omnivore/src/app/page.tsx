@@ -127,6 +127,140 @@ const getGreetingForAgent = (ag: AgentItem) => {
   return `${ag.name} initialized. Ready to assist with ${ag.goal || ag.description || "scheduling, calendar coordination, emails, and daily productivity"}. Select a scenario above or enter a prompt below to get started.`;
 };
 
+const INTEGRATIONS_SHOWCASE = [
+  {
+    name: "Gmail",
+    category: "Email & Inbox",
+    badge: "OAuth2",
+    accent: "#EA4335",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+        <path d="M20 4H4C2.9 4 2 4.9 2 6V18C2 19.1 2.9 20 4 20H20C21.1 20 22 19.1 22 18V6C22 4.9 21.1 4 20 4Z" fill="#F2F2F2"/>
+        <path d="M22 6L12 13L2 6V18H4V8L12 14L20 8V18H22V6Z" fill="#EA4335"/>
+        <path d="M2 6L12 13L22 6H2Z" fill="#EA4335"/>
+      </svg>
+    ),
+  },
+  {
+    name: "Slack",
+    category: "ChatOps",
+    badge: "Real-time",
+    accent: "#4A154B",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+        <path d="M6 15a2 2 0 1 1-2-2h2v2zm1 0a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-5z" fill="#E01E5A"/>
+        <path d="M9 6a2 2 0 1 1-2-2v2h2zm0 1a2 2 0 0 1 2 2 2 2 0 0 1-2 2H4a2 2 0 0 1-2-2 2 2 0 0 1 2-2h5z" fill="#36C5F0"/>
+        <path d="M18 9a2 2 0 1 1 2 2h-2V9zm-1 0a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2 2 2 0 0 1 2 2v5z" fill="#2EB67D"/>
+        <path d="M15 18a2 2 0 1 1 2 2v-2h-2zm0-1a2 2 0 0 1-2-2 2 2 0 0 1 2-2h5a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-5z" fill="#ECB22E"/>
+      </svg>
+    ),
+  },
+  {
+    name: "WhatsApp",
+    category: "Messaging",
+    badge: "Direct API",
+    accent: "#25D366",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="11" fill="#25D366"/>
+        <path d="M17.5 14.5c-.2-.1-1.3-.6-1.5-.7-.2-.1-.4-.1-.5.1-.2.2-.6.7-.8.9-.2.2-.3.2-.5.1-.2-.1-1-.4-1.9-1.2-.7-.6-1.2-1.4-1.3-1.6-.1-.2 0-.4.1-.5.1-.1.2-.2.3-.4.1-.1.2-.2.2-.4.1-.1 0-.3 0-.4-.1-.1-.5-1.3-.7-1.8-.2-.5-.4-.4-.5-.4h-.5c-.2 0-.5.1-.7.3-.2.2-.9.9-.9 2.2 0 1.3.9 2.6 1.1 2.8.1.2 1.9 2.9 4.6 4 2.7 1.1 2.7.8 3.2.7.5-.1 1.6-.7 1.8-1.3.2-.6.2-1.2.2-1.3-.1-.2-.3-.2-.5-.3z" fill="white"/>
+      </svg>
+    ),
+  },
+  {
+    name: "Google Sheets",
+    category: "Spreadsheets",
+    badge: "Live Sync",
+    accent: "#0F9D58",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="2" width="18" height="20" rx="3" fill="#0F9D58"/>
+        <path d="M7 7h10v10H7z" fill="white" fillOpacity="0.2"/>
+        <path d="M7 10h10M7 14h10M12 7v10" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    name: "Notion",
+    category: "Knowledge Base",
+    badge: "Workspace",
+    accent: "#000000",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="2" width="20" height="20" rx="4" fill="#000000"/>
+        <path d="M7 6.5h3l5 7.5V6.5h2.5v11h-3l-5-7.5v7.5H7v-11z" fill="#FFFFFF"/>
+      </svg>
+    ),
+  },
+  {
+    name: "GitHub",
+    category: "DevOps & CI/CD",
+    badge: "Webhooks",
+    accent: "#24292e",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+        <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+      </svg>
+    ),
+  },
+  {
+    name: "PostgreSQL",
+    category: "SQL Databases",
+    badge: "Direct DB",
+    accent: "#336791",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 16.5c-3.5 0-5.5-2.2-5.5-5 0-2.3 1.5-4 4-4.5v1.2c-1.6.4-2.5 1.6-2.5 3.3 0 2 1.4 3.5 4 3.5 1.8 0 3-.8 3.5-2h-3v-1.5h4.8c.1.5.2 1 .2 1.5 0 2.2-1.3 3.5-2.5 3.5z" fill="#336791"/>
+      </svg>
+    ),
+  },
+  {
+    name: "REST APIs",
+    category: "HTTP Endpoints",
+    badge: "Any Schema",
+    accent: "#0066FF",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="#0066FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="2" y1="12" x2="22" y2="12"/>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+    ),
+  },
+  {
+    name: "Webhooks",
+    category: "Event Triggers",
+    badge: "Push/Async",
+    accent: "#FF4500",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="#FF4500" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+    ),
+  },
+  {
+    name: "ESP32",
+    category: "Hardware & IoT",
+    badge: "GPIO Telemetry",
+    accent: "#71ce34",
+    icon: (
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="#71ce34" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="4" y="4" width="16" height="16" rx="2"/>
+        <rect x="9" y="9" width="6" height="6"/>
+        <line x1="9" y1="1" x2="9" y2="4"/>
+        <line x1="15" y1="1" x2="15" y2="4"/>
+        <line x1="9" y1="20" x2="9" y2="23"/>
+        <line x1="15" y1="20" x2="15" y2="23"/>
+        <line x1="20" y1="9" x2="23" y2="9"/>
+        <line x1="20" y1="14" x2="23" y2="14"/>
+        <line x1="1" y1="9" x2="4" y2="9"/>
+        <line x1="1" y1="14" x2="4" y2="14"/>
+      </svg>
+    ),
+  },
+];
+
 export default function SapiensAgentStudio() {
   // Top view mode: "builder" (Sapiens Agent Builder Studio) vs "showcase" (Sapiens Frontier Landing)
   const [viewMode, setViewMode] = useState<"builder" | "showcase">("builder");
@@ -498,6 +632,10 @@ When reading sensor data:
             } else if (storedId && list.some((a: any) => a.id === storedId)) {
               targetId = storedId;
             }
+            const viewParam = urlParams.get("view");
+            if (viewParam === "showcase" || viewParam === "landing" || viewParam === "hero") {
+              setViewMode("showcase");
+            }
           }
 
           if (targetId && list.some((a: any) => a.id === targetId)) {
@@ -782,11 +920,12 @@ When reading sensor data:
                 onClick={() => setViewMode("showcase")}
                 className={`px-2 sm:px-3 py-1 rounded font-medium transition-all duration-200 interactive-btn text-[11px] sm:text-xs ${
                   viewMode === "showcase"
-                    ? "bg-[#71ce34] text-white shadow-sm font-bold"
+                    ? "bg-[#0066FF] text-white shadow-sm font-bold"
                     : "text-neutral-600 hover:text-[#0C0C0D]"
                 }`}
               >
-                Overview
+                <span className="hidden sm:inline">Hero Landing</span>
+                <span className="inline sm:hidden">Hero</span>
               </button>
             </div>
 
@@ -1610,203 +1749,436 @@ When reading sensor data:
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* VIEW 2: SAPIENS FRONTIER SHOWCASE (WHITE MODE)                */}
+      {/* VIEW 2: SAPIENS HERO LANDING SHOWCASE                         */}
       {/* ───────────────────────────────────────────────────────────── */}
       {viewMode === "showcase" && (
-        <div className="flex-1 bg-[#FAF8F5] text-[#0C0C0D] py-8 sm:py-12 px-3 sm:px-8 lg:px-16 space-y-12 sm:space-y-16 selection:bg-[#71ce34] selection:text-white animate-fade-in">
-          <div className="max-w-6xl mx-auto space-y-12 sm:space-y-16">
-            {/* Hero Section */}
-            <div className="space-y-5 sm:space-y-6">
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-sapiens-display tracking-tight text-[#0C0C0D] max-w-2xl">
-                Build your frontier with Studio.
+        <div className="flex-1 bg-[#FAF8F5] text-[#0C0C0D] py-8 sm:py-14 px-4 sm:px-8 lg:px-16 space-y-16 sm:space-y-20 selection:bg-[#0066FF] selection:text-white animate-fade-in">
+          <div className="max-w-6xl mx-auto space-y-16 sm:space-y-20">
+
+            {/* 1. HERO SECTION */}
+            <div className="space-y-6 text-center max-w-4xl mx-auto">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0066FF]/10 border border-[#0066FF]/20 text-[#0066FF] text-xs font-mono font-bold tracking-widest uppercase">
+                <Sparkles className="w-3.5 h-3.5" /> SAPIENS STUDIO
+              </div>
+
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-sapiens-display tracking-tight text-[#0C0C0D] leading-[1.08]">
+                Your one-stop platform for AI automation.
               </h1>
 
-              {/* Giant Electric Blue Banner (Frontier Studio Design) */}
-              <div className="sapiens-card-blue p-6 sm:p-8 md:p-12 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 hover-lift">
-                <div className="space-y-2 max-w-2xl">
-                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white">
-                    Fine-tune, evaluate, and build frontier agents on any hardware stack.
-                  </h2>
-                  <p className="text-white/90 text-xs sm:text-sm leading-relaxed">
-                    Autonomous agent workflows with real-time episodic reflection and deterministic guardrails.
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
-                  <a
-                    href="/agents/create"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-md transition flex items-center gap-1.5 interactive-btn hover-lift"
-                  >
-                    <Plus className="w-4 h-4" /> Create Agent
-                  </a>
-                  <button
-                    onClick={() => setViewMode("builder")}
-                    className="px-5 sm:px-6 py-2.5 sm:py-3 rounded bg-white hover:bg-neutral-100 text-[#0066FF] font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2 interactive-btn hover-lift"
-                  >
-                    Open Studio Builder <ArrowRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
+              <p className="text-xl sm:text-2xl text-neutral-800 font-medium max-w-3xl mx-auto leading-snug">
+                Build, connect, automate, and deploy AI agents — without the complexity.
+              </p>
 
-            {/* Section 1: Build (Frontier Studio Design) */}
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
-                  Build.
-                </h2>
-                <p className="text-neutral-600 text-sm mt-1">
-                  Develop custom agentic workflows that operate securely across your edge &amp; enterprise infrastructure.
-                </p>
+              <p className="text-neutral-600 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed">
+                Create powerful workflow automations in minutes by connecting the tools and services you already use. Bring your own API keys or start instantly with supported platform free tiers.
+              </p>
+
+              <div className="pt-2">
+                <span className="inline-block text-xs sm:text-sm font-mono font-bold text-[#0C0C0D] bg-neutral-100 px-3.5 py-1.5 rounded-md border border-[#E6E2DA]">
+                  Build fast. Deploy faster. Stay protected.
+                </span>
               </div>
 
-              {/* Big Vivid Accent Backdrop Card */}
-              <div className="sapiens-card-orange p-5 sm:p-8 shadow-lg space-y-4 hover-lift">
-                <div className="bg-white rounded-lg p-4 sm:p-6 border border-neutral-200 text-[#0C0C0D] space-y-4 shadow-xl">
-                  <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full bg-rose-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-                      <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                      <span className="text-xs font-mono text-neutral-600 ml-2">sapiens-cold-chain.agent.ts</span>
-                    </div>
-                    <span className="text-[10px] font-mono text-white bg-[#71ce34] px-2 py-0.5 rounded font-bold">
-                      EVE RUNTIME
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 text-xs font-mono">
-                    <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
-                      <span className="text-neutral-500 block text-[10px]">1. EPISODIC INGESTION</span>
-                      <span className="text-emerald-700 font-bold">3 Defrost Cycles Logged</span>
-                    </div>
-                    <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
-                      <span className="text-neutral-500 block text-[10px]">2. STATISTICAL REFLECTION</span>
-                      <span className="text-amber-800 font-bold">96.4% Confidence Pattern</span>
-                    </div>
-                    <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
-                      <span className="text-neutral-500 block text-[10px]">3. PROMPT INJECTION</span>
-                      <span className="text-[#0066FF] font-bold">Policy #1 Live Enforced</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 2: Sensors & Hardware (Frontier Studio Design) */}
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
-                  Sensors &amp; Multi-Channel.
-                </h2>
-                <p className="text-neutral-600 text-sm mt-1">
-                  Connect physical microcontrollers and messaging channels (WhatsApp, Discord, Telegram) directly into the agent feedback loop.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-                <div className="sapiens-card-blue p-5 sm:p-6 rounded-lg text-white space-y-4 shadow-md hover-lift">
-                  <h3 className="text-lg sm:text-xl font-bold">ESP32-S3 Microcontroller</h3>
-                  <p className="text-xs text-white/90 leading-relaxed">
-                    Sub-second HTTP telemetry streams directly into the anomaly detection engine. If a thermal breach exceeds -10°C, the agent initiates emergency response.
-                  </p>
-                  <div className="p-3 rounded bg-black/20 font-mono text-xs text-white break-all">
-                    I2C SDA: GPIO 8 • SCL: GPIO 9 • Port: COM4
-                  </div>
-                </div>
-
-                <div className="p-5 sm:p-6 rounded-lg border border-[#E6E2DA] bg-white shadow-sm space-y-4 hover-lift">
-                  <h3 className="text-lg sm:text-xl font-bold text-[#0C0C0D]">SSD1306 128x64 OLED Feedback</h3>
-                  <p className="text-xs text-neutral-600 leading-relaxed">
-                    The microcontroller displays live agent decisions. When the learned defrost policy suppresses a false alarm, the physical OLED shows <code className="text-[#71ce34] font-bold">[POLICY]</code>.
-                  </p>
-                  <div className="p-3 rounded bg-[#FAF8F5] font-mono text-xs text-neutral-700 border border-[#EAE6DE]">
-                    Live Status: -18.4°C • NOMINAL • COM4 ONLINE
-                  </div>
-                </div>
-
-                <div className="p-5 sm:p-6 rounded-lg border border-[#E6E2DA] bg-white shadow-sm space-y-4 hover-lift">
-                  <h3 className="text-lg sm:text-xl font-bold text-[#0C0C0D]">WhatsApp &amp; Discord Gateway</h3>
-                  <p className="text-xs text-neutral-600 leading-relaxed">
-                    Two-way messaging allows operators to receive formatted alert cards and approve high-risk commands remotely via chat.
-                  </p>
-                  <button
-                    onClick={() => setShowChannelsModal(true)}
-                    className="w-full py-2 bg-[#71ce34] hover:bg-[#62b62b] text-white text-xs font-bold rounded transition interactive-btn hover-lift"
-                  >
-                    Configure Messaging Channels
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 3: Guardrails & Trust (Frontier Studio Design) */}
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
-                  Guardrails.
-                </h2>
-                <p className="text-neutral-600 text-sm mt-1">
-                  Deterministic boundaries and transparent Trust Scoring prevent hallucinated or dangerous actions.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-                <div className="p-5 rounded-lg bg-white border border-[#E6E2DA] space-y-2 shadow-xs hover-lift">
-                  <span className="text-[10px] font-mono font-bold text-[#71ce34] uppercase tracking-wider">
-                    CALCULATED TRUST
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-black text-[#0C0C0D] font-mono">92.4% (A+)</div>
-                  <p className="text-xs text-neutral-600">
-                    Computed transparently from safe tool executions, operator alignment, and low concept drift.
-                  </p>
-                </div>
-
-                <div className="p-5 rounded-lg bg-white border border-[#E6E2DA] space-y-2 shadow-xs hover-lift">
-                  <span className="text-[10px] font-mono font-bold text-rose-600 uppercase tracking-wider">
-                    HARDWARE GATING
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-black text-[#0C0C0D] font-mono">Strict Human Sign-off</div>
-                  <p className="text-xs text-neutral-600">
-                    Actions categorized as High Risk (e.g. compressor shutdown) are quarantined until manually approved.
-                  </p>
-                </div>
-
-                <div className="p-5 rounded-lg bg-white border border-[#E6E2DA] space-y-2 shadow-xs hover-lift">
-                  <span className="text-[10px] font-mono font-bold text-[#0066FF] uppercase tracking-wider">
-                    POLICY PROMOTION
-                  </span>
-                  <div className="text-2xl sm:text-3xl font-black text-[#0C0C0D] font-mono">Candidate Review</div>
-                  <p className="text-xs text-neutral-600">
-                    Candidate patterns synthesized by the Reflection Engine require operator sign-off before entering production prompt.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom CTA Banner (Frontier Studio Design) */}
-            <div className="sapiens-card-orange p-6 sm:p-8 md:p-12 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 hover-lift">
-              <div className="space-y-1 text-center md:text-left">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                  Build, customize and deploy AI solutions with complete control.
-                </h2>
-                <p className="text-white/90 text-xs">
-                  graVITas Hackathon MVP • Autonomous Self-Learning &amp; Hardware Guardrail Agent Platform
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
                 <a
                   href="/agents/create"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-4 sm:px-5 py-2.5 sm:py-3 rounded bg-white hover:bg-neutral-100 text-[#0C0C0D] font-bold text-xs uppercase tracking-wider shadow-md transition inline-flex items-center gap-1.5 interactive-btn hover-lift"
+                  className="px-6 py-3.5 rounded-lg bg-black hover:bg-neutral-900 text-white font-bold text-sm shadow-xl transition inline-flex items-center gap-2 interactive-btn hover-lift"
                 >
-                  <Plus className="w-3.5 h-3.5" /> New Agent
+                  <Plus className="w-4 h-4" /> Build Your Agent →
                 </a>
                 <button
                   onClick={() => setViewMode("builder")}
-                  className="px-5 sm:px-6 py-2.5 sm:py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-lg transition interactive-btn hover-lift"
+                  className="px-6 py-3.5 rounded-lg bg-white hover:bg-neutral-50 text-[#0C0C0D] border border-[#D5D0C5] font-bold text-sm shadow-sm transition inline-flex items-center gap-2 interactive-btn hover-lift"
+                >
+                  <LayoutGrid className="w-4 h-4 text-[#0066FF]" /> Explore Automations
+                </button>
+              </div>
+            </div>
+
+            {/* 2. CONNECT EVERYTHING YOU USE (SLIDESHOW MARQUEE) */}
+            <div className="space-y-6">
+              <div className="text-center max-w-2xl mx-auto space-y-2">
+                <h2 className="text-2xl sm:text-3xl font-sapiens-display tracking-tight text-[#0C0C0D]">
+                  Connect everything you use
+                </h2>
+                <p className="text-base sm:text-lg font-medium text-neutral-800">
+                  Your tools. Your workflows. One platform.
+                </p>
+                <p className="text-xs sm:text-sm text-neutral-600">
+                  Connect your favourite integrations and let SAPIENS orchestrate them into intelligent workflows.
+                </p>
+              </div>
+
+              {/* Moving Integration Slideshow */}
+              <div className="relative overflow-hidden py-4 border-y border-[#E6E2DA] bg-white/70 backdrop-blur-xs rounded-2xl shadow-xs">
+                <div className="flex animate-marquee gap-3.5">
+                  {[...INTEGRATIONS_SHOWCASE, ...INTEGRATIONS_SHOWCASE, ...INTEGRATIONS_SHOWCASE].map((item, idx) => (
+                    <div
+                      key={`${item.name}-${idx}`}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-[#E6E2DA] shadow-xs hover:shadow-md hover:border-[#0066FF]/40 transition-all shrink-0 hover-lift group cursor-default"
+                    >
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-[#FAF8F5] border border-[#EAE6DE] group-hover:scale-110 transition-transform">
+                        {item.icon}
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-bold text-[#0C0C0D] flex items-center gap-1.5">
+                          {item.name}
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-neutral-100 text-neutral-600 font-semibold">
+                            {item.badge}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-neutral-500 font-mono">{item.category}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <p className="text-center text-xs font-mono text-neutral-400">
+                Gmail → Slack → WhatsApp → Google Sheets → Notion → GitHub → PostgreSQL → REST APIs → Webhooks → ESP32
+              </p>
+            </div>
+
+            {/* 3. BUILD AN AGENT IN UNDER A MINUTE */}
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
+                  Build an agent in under a minute
+                </h2>
+                <p className="text-neutral-700 text-base font-medium">
+                  Describe what you want. SAPIENS builds the workflow.
+                </p>
+              </div>
+
+              <div className="sapiens-card-blue p-6 sm:p-8 rounded-2xl shadow-xl space-y-6 hover-lift text-white">
+                {/* Workflow Diagram */}
+                <div className="bg-black/25 backdrop-blur-md rounded-xl p-5 sm:p-7 border border-white/15 space-y-4">
+                  <div className="text-xs font-mono font-bold tracking-wider text-white/80 uppercase">
+                    Execution Flow Architecture
+                  </div>
+
+                  {/* Flow Diagram Interactive Cards */}
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-center">
+                    {/* Goal */}
+                    <div className="w-full md:flex-1 p-4 rounded-lg bg-white text-[#0C0C0D] shadow-md border border-white/20">
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-neutral-500 font-bold">Initiator</div>
+                      <div className="text-base font-bold flex items-center justify-center gap-1.5 mt-0.5">
+                        <Sparkles className="w-4 h-4 text-[#0066FF]" /> Your Goal
+                      </div>
+                      <div className="text-[11px] text-neutral-600 mt-1">Prompt, webhook, or trigger</div>
+                    </div>
+
+                    <ArrowRight className="w-5 h-5 text-white shrink-0 hidden md:block" />
+                    <div className="text-white text-xs md:hidden font-mono">↓</div>
+
+                    {/* Agent */}
+                    <div className="w-full md:flex-1 p-4 rounded-lg bg-black/40 text-white shadow-md border border-white/25">
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-blue-300 font-bold">Orchestrator</div>
+                      <div className="text-base font-bold flex items-center justify-center gap-1.5 mt-0.5">
+                        <Bot className="w-4 h-4 text-cyan-400" /> AI Agent
+                      </div>
+                      <div className="text-[11px] text-white/80 mt-1">SAPIENS reasoning engine</div>
+                    </div>
+
+                    <ArrowRight className="w-5 h-5 text-white shrink-0 hidden md:block" />
+                    <div className="text-white text-xs md:hidden font-mono">↓</div>
+
+                    {/* Pipeline Sequence */}
+                    <div className="w-full md:flex-2 p-4 rounded-lg bg-white/15 backdrop-blur-sm text-white shadow-md border border-white/20">
+                      <div className="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold">Dynamic Pipeline</div>
+                      <div className="flex items-center justify-center gap-2 mt-1 font-mono text-xs sm:text-sm font-bold flex-wrap">
+                        <span className="px-2 py-0.5 rounded bg-white/20">Plan</span>
+                        <span>→</span>
+                        <span className="px-2 py-0.5 rounded bg-white/20">Tools</span>
+                        <span>→</span>
+                        <span className="px-2 py-0.5 rounded bg-white/20">Actions</span>
+                        <span>→</span>
+                        <span className="px-2 py-0.5 rounded bg-emerald-400/30 text-emerald-200">Result</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6 Features Checklist Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 pt-2">
+                  {[
+                    "Visual agent builder",
+                    "Pre-built workflow components",
+                    "API & tool integrations",
+                    "Custom instructions",
+                    "Multi-step execution",
+                    "Test before deployment",
+                  ].map((feat, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-2.5 p-3 rounded-lg bg-white/10 backdrop-blur-xs border border-white/15 text-xs sm:text-sm font-medium"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
+                      <span>{feat}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-white/15 flex items-center justify-between flex-wrap gap-3">
+                  <span className="text-sm font-bold text-white tracking-wide">
+                    From idea to working automation in minutes.
+                  </span>
+                  <a
+                    href="/agents/create"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 rounded bg-white text-[#0066FF] hover:bg-neutral-100 font-bold text-xs uppercase tracking-wider shadow transition inline-flex items-center gap-1.5"
+                  >
+                    Open Visual Builder <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. BRING YOUR OWN KEYS. OR START FREE. */}
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
+                  Bring Your Own Keys. Or Start Free.
+                </h2>
+                <p className="text-neutral-600 text-sm sm:text-base">
+                  Use your own API keys for maximum flexibility and control, or use available <strong className="text-[#0C0C0D]">platform-managed/free-tier credentials</strong> to get started without complicated setup.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                {/* BYOK Card */}
+                <div className="p-6 rounded-2xl bg-white border border-[#E6E2DA] shadow-sm hover:shadow-md transition-all space-y-4 hover-lift">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600">
+                    <Key className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#0C0C0D]">Bring Your Own Key (BYOK)</h3>
+                    <p className="text-xs sm:text-sm text-neutral-600 mt-1 leading-relaxed">
+                      Connect your existing Mistral, OpenAI, Anthropic, Groq, or OpenRouter keys. You retain 100% ownership of your limits, rate tiers, and private quotas.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#EAE6DE] font-mono text-xs text-neutral-700 flex items-center justify-between">
+                    <span>Keys Stored Encrypted</span>
+                    <span className="text-emerald-600 font-bold">CLIENT PRIVACY</span>
+                  </div>
+                </div>
+
+                {/* Free Tier Card */}
+                <div className="p-6 rounded-2xl bg-white border border-[#E6E2DA] shadow-sm hover:shadow-md transition-all space-y-4 hover-lift">
+                  <div className="w-10 h-10 rounded-xl bg-[#0066FF]/10 border border-[#0066FF]/20 flex items-center justify-center text-[#0066FF]">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-[#0C0C0D]">Platform-Managed / Start Free</h3>
+                    <p className="text-xs sm:text-sm text-neutral-600 mt-1 leading-relaxed">
+                      Zero configuration required. Spin up automated agent workflows instantly using free platform allowances without managing credit balances or third-party accounts.
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#EAE6DE] font-mono text-xs text-neutral-700 flex items-center justify-between">
+                    <span>Instant Spin-Up</span>
+                    <span className="text-[#0066FF] font-bold">NO CREDIT CARD REQ</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tag Badges */}
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 py-2">
+                {["BYOK", "Flexible Models", "Multiple Integrations", "No Lock-In"].map((tag, i) => (
+                  <span
+                    key={i}
+                    className="px-3.5 py-1.5 rounded-full bg-white border border-[#D5D0C5] text-xs font-mono font-bold text-[#0C0C0D] shadow-xs"
+                  >
+                    • {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. GUARDRAILS BUILT INTO EVERY WORKFLOW */}
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
+                  Guardrails built into every workflow
+                </h2>
+                <p className="text-lg font-medium text-neutral-800">
+                  Automation shouldn't mean losing control.
+                </p>
+                <p className="text-xs sm:text-sm text-neutral-600">
+                  SAPIENS evaluates agent actions before they reach your connected systems.
+                </p>
+              </div>
+
+              {/* Guardrails Decision Card */}
+              <div className="sapiens-card-orange p-6 sm:p-8 rounded-2xl shadow-xl space-y-6 hover-lift">
+                <div className="bg-white rounded-xl p-5 sm:p-7 border border-neutral-200 shadow-md space-y-6">
+                  {/* Decision Tree Visual */}
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    {/* Agent Action Node */}
+                    <div className="px-6 py-3 rounded-lg bg-neutral-900 text-white font-mono text-xs sm:text-sm font-bold tracking-wider shadow-sm">
+                      AGENT ACTION
+                    </div>
+
+                    <div className="text-neutral-400 font-mono text-xs">↓</div>
+
+                    {/* Risk Check Node */}
+                    <div className="px-6 py-3 rounded-lg bg-[#0066FF] text-white font-mono text-xs sm:text-sm font-bold tracking-wider shadow-sm flex items-center gap-2">
+                      <Shield className="w-4 h-4" /> RISK CHECK
+                    </div>
+
+                    <div className="text-neutral-400 font-mono text-xs">↓</div>
+
+                    {/* Outcome Branches */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full pt-1">
+                      {/* ALLOW */}
+                      <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-center space-y-1 hover-lift transition">
+                        <div className="font-mono text-xs font-bold text-emerald-700 uppercase tracking-wider flex items-center justify-center gap-1">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> ALLOW
+                        </div>
+                        <p className="text-[11px] text-emerald-900 font-medium leading-tight">
+                          Low-risk queries &amp; read actions execute automatically with sub-second response.
+                        </p>
+                      </div>
+
+                      {/* APPROVAL */}
+                      <div className="p-4 rounded-lg bg-amber-50 border border-amber-200 text-center space-y-1 hover-lift transition">
+                        <div className="font-mono text-xs font-bold text-amber-700 uppercase tracking-wider flex items-center justify-center gap-1">
+                          <AlertTriangle className="w-4 h-4 text-amber-600" /> APPROVAL
+                        </div>
+                        <p className="text-[11px] text-amber-900 font-medium leading-tight">
+                          State mutations, emails &amp; external updates pause for human operator review.
+                        </p>
+                      </div>
+
+                      {/* BLOCK */}
+                      <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-center space-y-1 hover-lift transition">
+                        <div className="font-mono text-xs font-bold text-rose-700 uppercase tracking-wider flex items-center justify-center gap-1">
+                          <XCircle className="w-4 h-4 text-rose-600" /> BLOCK
+                        </div>
+                        <p className="text-[11px] text-rose-900 font-medium leading-tight">
+                          Violations, unauthorized tools &amp; prompt injection attempts are rejected immediately.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Guardrail Policy Badges */}
+                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 text-white font-mono text-xs font-bold">
+                  {[
+                    "Permissions",
+                    "Risk Controls",
+                    "Human Approval",
+                    "Policy Enforcement",
+                    "Audit Logs",
+                  ].map((item, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1 rounded bg-black/25 backdrop-blur-xs border border-white/20"
+                    >
+                      • {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* 6. TRUST EVERY ACTION (7 PILLARS) */}
+            <div className="space-y-6">
+              <div className="space-y-1">
+                <h2 className="text-3xl sm:text-4xl font-sapiens-display tracking-tight text-[#0C0C0D]">
+                  Trust every action
+                </h2>
+                <p className="text-lg font-medium text-neutral-800">
+                  Know what your agents are doing.
+                </p>
+                <p className="text-xs sm:text-sm text-neutral-600">
+                  SAPIENS provides complete visibility into agent execution with:
+                </p>
+              </div>
+
+              {/* 7 Pillars Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[
+                  {
+                    icon: "🔐",
+                    title: "Permission controls",
+                    desc: "Fine-grained, tool-by-tool execution permissions with strict read/write boundaries.",
+                  },
+                  {
+                    icon: "🛡️",
+                    title: "Action-level guardrails",
+                    desc: "Deterministic safety assertions applied at runtime before invoking external APIs.",
+                  },
+                  {
+                    icon: "👤",
+                    title: "Human-in-the-loop approvals",
+                    desc: "Quarantine high-impact actions for operator review via web interface or chat channels.",
+                  },
+                  {
+                    icon: "🧪",
+                    title: "Evaluation harnesses",
+                    desc: "Automated regression testing suites to benchmark agent accuracy and drift resistance.",
+                  },
+                  {
+                    icon: "🍯",
+                    title: "Honeypots for unsafe behaviour",
+                    desc: "Active canaries and traps detecting jailbreaks, prompt injections, and rogue tool use.",
+                  },
+                  {
+                    icon: "📋",
+                    title: "Execution logs & audit trails",
+                    desc: "Immutable chronological trace records of every thought, tool invocation, and API payload.",
+                  },
+                  {
+                    icon: "🚨",
+                    title: "Real-time security events",
+                    desc: "Instant notifications and circuit breaker trips upon any unauthorized attempt.",
+                  },
+                ].map((pillar, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-5 rounded-xl bg-white border border-[#E6E2DA] shadow-xs hover:shadow-md hover:border-[#0066FF]/40 transition-all space-y-2 hover-lift ${
+                      idx === 6 ? "sm:col-span-2 lg:col-span-1" : ""
+                    }`}
+                  >
+                    <div className="text-2xl">{pillar.icon}</div>
+                    <h3 className="text-sm font-bold text-[#0C0C0D] flex items-center gap-1.5">
+                      {pillar.title}
+                    </h3>
+                    <p className="text-xs text-neutral-600 leading-relaxed">{pillar.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 7. CLOSING CTA BANNER */}
+            <div className="sapiens-card-orange p-6 sm:p-10 md:p-12 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 hover-lift">
+              <div className="space-y-2 text-center md:text-left">
+                <div className="text-xs font-mono uppercase tracking-widest text-white/90 font-bold">
+                  SAPIENS STUDIO
+                </div>
+                <h2 className="text-2xl sm:text-4xl font-sapiens-display font-bold text-white tracking-tight">
+                  Automate with confidence.
+                </h2>
+                <p className="text-white/95 text-xs sm:text-sm italic font-medium">
+                  Build fast. Deploy faster. Stay in control.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-3 shrink-0">
+                <a
+                  href="/agents/create"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-5 py-3 rounded-lg bg-white hover:bg-neutral-100 text-[#0C0C0D] font-bold text-xs uppercase tracking-wider shadow-md transition inline-flex items-center gap-1.5 interactive-btn hover-lift"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Build Your Agent →
+                </a>
+                <button
+                  onClick={() => setViewMode("builder")}
+                  className="px-5 py-3 rounded-lg bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-lg transition interactive-btn hover-lift"
                 >
                   Launch Studio Builder
                 </button>
@@ -1814,7 +2186,7 @@ When reading sensor data:
             </div>
 
             {/* Footer with Iconic Sapiens Logo */}
-            <footer className="pt-12 pb-8 border-t border-[#E6E2DA] flex flex-col items-center justify-center space-y-3">
+            <footer className="pt-12 pb-8 border-t border-[#E6E2DA] flex flex-col items-center justify-center space-y-3 text-center">
               <Image
                 src="/logo.png"
                 alt="Sapiens Logo"
@@ -1822,10 +2194,14 @@ When reading sensor data:
                 height={48}
                 className="w-12 h-12 object-contain hover:scale-105 transition-transform duration-300"
               />
-              <span className="text-xs text-neutral-500 font-mono font-bold tracking-wider">
-                SAPIENS AGENT • Autonomous Self-Learning &amp; Guardrail AI Platform
-              </span>
+              <div className="text-xs text-neutral-600 font-mono font-bold tracking-wider">
+                SAPIENS STUDIO • Workflow Automation &amp; Guardrail AI Platform
+              </div>
+              <p className="text-[11px] text-neutral-400 font-mono">
+                Build fast. Deploy faster. Stay protected.
+              </p>
             </footer>
+
           </div>
         </div>
       )}
