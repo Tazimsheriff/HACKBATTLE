@@ -18,6 +18,12 @@ omnivore/yarn-error.log*
 omnivore/.pnp
 omnivore/.pnp.js
 
+# WhatsApp credentials
+omnivore/data/whatsapp_auth/
+whatsapp_auth/
+*.creds.json
+
 # OS files
 .DS_Store
 Thumbs.db
+

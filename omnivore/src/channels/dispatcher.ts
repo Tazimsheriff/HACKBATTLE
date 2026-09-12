@@ -135,14 +135,43 @@ export async function sendTelegramAlert(
   }
 }
 
+import { whatsappService } from "./whatsapp-service";
+
 /**
- * Dispatches notification to WhatsApp via Baileys adapter or gateway
+ * Dispatches notification to WhatsApp via Baileys multi-device socket
  */
 export async function sendWhatsAppAlert(
   recipientPhone: string,
   msg: ChannelMessage
 ): Promise<{ success: boolean; error?: string }> {
-  // Simulates or uses configured WhatsApp gateway
-  console.log(`[WhatsApp Dispatch] To: ${recipientPhone} | ${msg.title}: ${msg.body}`);
-  return { success: true };
+  const icon =
+    msg.severity === "critical"
+      ? "🚨"
+      : msg.severity === "approval"
+      ? "🔒"
+      : msg.severity === "warning"
+      ? "⚠️"
+      : "❄️";
+
+  const formattedText =
+    `${icon} *SAPIENS AGENT: ${msg.title}*\n\n` +
+    `${msg.body}` +
+    (msg.telemetry
+      ? `\n\n🌡️ *Temperature:* ${msg.telemetry.temperature?.toFixed(1)}°C\n💧 *Humidity:* ${msg.telemetry.humidity?.toFixed(0)}%\n📟 *Device:* ${msg.telemetry.deviceId || "ESP32-S3-01"}`
+      : "") +
+    (msg.approvalId
+      ? `\n\n⚠️ *FIREWALL QUARANTINE*\nTo authorize this high-risk action directly, reply:\n👉 */approve ${msg.approvalId}*\nOr to reject:\n👉 */reject ${msg.approvalId}*`
+      : "");
+
+  const status = whatsappService.getStatus();
+  if (status.status !== "connected") {
+    console.warn(`[WhatsApp Dispatch] WhatsApp not connected (status: ${status.status}). Simulation log:`, formattedText);
+    return {
+      success: false,
+      error: `WhatsApp client is ${status.status}. Please pair your device in SAPIENS Studio.`,
+    };
+  }
+
+  return await whatsappService.sendMessage(recipientPhone, formattedText);
 }
+

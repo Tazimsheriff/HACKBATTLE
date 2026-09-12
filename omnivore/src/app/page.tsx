@@ -40,6 +40,8 @@ import {
   MessageCircle,
   Hash,
   X,
+  Copy,
+  Phone,
 } from "lucide-react";
 import { SKILLS_SH_CATALOG } from "@/skills/registry";
 
@@ -557,7 +559,125 @@ export default function SapiensAgentStudio() {
   };
 
   // Arena Right Tab State
-  const [arenaTab, setArenaTab] = useState<"chat" | "oled" | "trace" | "approvals" | "firewall">("chat");
+  const [arenaTab, setArenaTab] = useState<"chat" | "oled" | "trace" | "approvals" | "firewall" | "whatsapp">("chat");
+
+  // WhatsApp Agent Live Integration State
+  const [waStatus, setWaStatus] = useState<"disconnected" | "pairing" | "connected" | "error">("disconnected");
+  const [waPhoneNumber, setWaPhoneNumber] = useState("");
+  const [waPairingCode, setWaPairingCode] = useState<string | null>(null);
+  const [waLinkedJid, setWaLinkedJid] = useState<string | null>(null);
+  const [waIsLoading, setWaIsLoading] = useState(false);
+  const [waCopied, setWaCopied] = useState(false);
+  const [waMessages, setWaMessages] = useState<
+    Array<{
+      id: string;
+      from: string;
+      senderName: string;
+      text: string;
+      timestamp: string;
+      direction: "inbound" | "outbound";
+    }>
+  >([]);
+  const [waCustomMessage, setWaCustomMessage] = useState("");
+
+  const fetchWhatsAppStatus = async () => {
+    try {
+      const res = await fetch("/api/channels/whatsapp/status");
+      if (res.ok) {
+        const data = await res.json();
+        setWaStatus(data.status || "disconnected");
+        if (data.pairingCode) setWaPairingCode(data.pairingCode);
+        if (data.userJid) setWaLinkedJid(data.userJid);
+        if (data.phoneNumber && !waPhoneNumber) setWaPhoneNumber(data.phoneNumber);
+        if (data.recentMessages) setWaMessages(data.recentMessages);
+      }
+    } catch (_) {}
+  };
+
+  const handleStartWhatsAppPairing = async (overrideNumber?: string) => {
+    const target = (overrideNumber || waPhoneNumber || whatsAppRecipient || "").trim();
+    if (!target) {
+      alert("Please enter your WhatsApp phone number with country code (e.g., +91 98765 43210)");
+      return;
+    }
+    setWaIsLoading(true);
+    try {
+      const res = await fetch("/api/channels/whatsapp/pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber: target }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.pairingCode) {
+          setWaPairingCode(data.pairingCode);
+          setWaStatus("pairing");
+          setChannelToast("🔑 Pairing code generated! Enter in WhatsApp > Linked Devices.");
+        } else {
+          setWaStatus("connected");
+          setChannelToast("✅ WhatsApp client is active!");
+        }
+      } else {
+        alert(data.error || "Failed to generate pairing code");
+      }
+    } catch (e: any) {
+      alert(e.message || "Failed to connect to WhatsApp API");
+    } finally {
+      setWaIsLoading(false);
+      fetchWhatsAppStatus();
+    }
+  };
+
+  const handleWhatsAppLogout = async () => {
+    if (!confirm("Are you sure you want to disconnect WhatsApp and remove credentials?")) return;
+    setWaIsLoading(true);
+    try {
+      await fetch("/api/channels/whatsapp/logout", { method: "POST" });
+      setWaStatus("disconnected");
+      setWaPairingCode(null);
+      setWaLinkedJid(null);
+      setChannelToast("WhatsApp session disconnected");
+    } catch (_) {
+    } finally {
+      setWaIsLoading(false);
+      fetchWhatsAppStatus();
+    }
+  };
+
+  const handleSendWhatsAppCustom = async () => {
+    const target = (waPhoneNumber || whatsAppRecipient || "").trim();
+    if (!target || !waCustomMessage.trim()) return;
+    setWaIsLoading(true);
+    try {
+      const res = await fetch("/api/channels/whatsapp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipient: target,
+          text: waCustomMessage,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setWaCustomMessage("");
+        setChannelToast("Message sent to WhatsApp!");
+        fetchWhatsAppStatus();
+      } else {
+        alert(d.error || "Failed to dispatch WhatsApp message");
+      }
+    } catch (e: any) {
+      alert(e.message || "Network error");
+    } finally {
+      setWaIsLoading(false);
+    }
+  };
+
+  const copyPairingCode = () => {
+    if (!waPairingCode) return;
+    navigator.clipboard.writeText(waPairingCode.replace("-", ""));
+    setWaCopied(true);
+    setTimeout(() => setWaCopied(false), 2000);
+  };
 
   // Chat / Runner State
   const [chatInput, setChatInput] = useState("");
@@ -825,16 +945,20 @@ export default function SapiensAgentStudio() {
     }
     fetchData();
     fetchFirewallData();
+    fetchWhatsAppStatus();
     const handleFocus = () => {
       fetchData();
       fetchFirewallData();
+      fetchWhatsAppStatus();
     };
     window.addEventListener("focus", handleFocus);
-    // Poll firewall events every 8s
+    // Poll firewall events every 8s and WhatsApp status every 6s
     const firewallPoll = setInterval(fetchFirewallData, 8000);
+    const waPoll = setInterval(fetchWhatsAppStatus, 6000);
     return () => {
       window.removeEventListener("focus", handleFocus);
       clearInterval(firewallPoll);
+      clearInterval(waPoll);
     };
   }, []);
 
@@ -1291,38 +1415,130 @@ export default function SapiensAgentStudio() {
             {/* TAB: WHATSAPP */}
             {channelTab === "whatsapp" && (
               <div className="space-y-4 text-xs">
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="font-bold text-emerald-800">Baileys WhatsApp Socket Ready</span>
+                {/* Connection Status Banner */}
+                <div className={`p-3 rounded border flex items-center justify-between transition-colors ${
+                  waStatus === "connected"
+                    ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                    : waStatus === "pairing"
+                    ? "bg-amber-50 border-amber-300 text-amber-900"
+                    : "bg-neutral-50 border-[#E6E2DA] text-neutral-800"
+                }`}>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`w-2.5 h-2.5 rounded-full ${
+                      waStatus === "connected"
+                        ? "bg-emerald-500 animate-pulse"
+                        : waStatus === "pairing"
+                        ? "bg-amber-500 animate-ping"
+                        : "bg-neutral-400"
+                    }`}></span>
+                    <div>
+                      <span className="font-bold block">
+                        {waStatus === "connected"
+                          ? "WhatsApp Multi-Device Active"
+                          : waStatus === "pairing"
+                          ? "Pairing in Progress (Awaiting Phone Confirmation)"
+                          : "WhatsApp Disconnected"}
+                      </span>
+                      <span className="text-[10px] text-neutral-500 font-mono">
+                        {waLinkedJid ? `Linked: ${waLinkedJid}` : "Headless Baileys Socket Engine"}
+                      </span>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-mono text-emerald-700">Auto-Approval Enabled</span>
+                  {waStatus === "connected" ? (
+                    <button
+                      onClick={handleWhatsAppLogout}
+                      disabled={waIsLoading}
+                      className="px-2.5 py-1 text-[10px] font-bold text-rose-600 hover:text-rose-800 bg-rose-50 border border-rose-200 rounded transition hover:bg-rose-100"
+                    >
+                      Disconnect
+                    </button>
+                  ) : null}
                 </div>
 
-                <div>
-                  <label className="font-bold text-neutral-800 block mb-1">Target Phone Number / Group</label>
-                  <input
-                    type="text"
-                    value={whatsAppRecipient}
-                    onChange={(e) => setWhatsAppRecipient(e.target.value)}
-                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#71ce34] focus:bg-white"
-                  />
-                  <p className="text-[11px] text-neutral-500 mt-1">
-                    When high-risk actions are quarantined, operators can reply <code className="font-bold text-[#71ce34]">APPROVE</code> directly via WhatsApp.
+                {/* PAIRING CODE DISPLAY CARD (When active) */}
+                {waPairingCode && waStatus === "pairing" && (
+                  <div className="p-4 rounded-xl bg-neutral-900 text-white space-y-3 shadow-lg border border-neutral-700 animate-fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono uppercase tracking-wider text-[#71ce34] font-bold">
+                        🔑 WhatsApp 8-Digit Pairing Code:
+                      </span>
+                      <span className="text-[10px] text-neutral-400">Expires in 2 mins</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-center gap-3 py-2 bg-neutral-950 rounded-lg border border-neutral-800">
+                      <span className="font-mono text-2xl sm:text-3xl font-black tracking-widest text-[#71ce34]">
+                        {waPairingCode}
+                      </span>
+                      <button
+                        onClick={copyPairingCode}
+                        className="p-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white transition flex items-center gap-1 text-[11px] font-mono"
+                        title="Copy code without dash"
+                      >
+                        {waCopied ? <Check className="w-3.5 h-3.5 text-[#71ce34]" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{waCopied ? "Copied" : "Copy"}</span>
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5 text-[11px] text-neutral-300 bg-neutral-800/50 p-3 rounded-lg">
+                      <span className="font-bold text-white block mb-1">How to Link on Your Phone:</span>
+                      <p>1. Open <b>WhatsApp</b> on your mobile device</p>
+                      <p>2. Go to <b>Settings</b> (iOS) or <b>⋮ Menu</b> (Android) &gt; <b>Linked Devices</b></p>
+                      <p>3. Tap <b>Link a Device</b> &gt; tap <b>"Link with phone number instead"</b> at bottom</p>
+                      <p>4. Enter the 8-character code shown above</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* PHONE NUMBER INPUT & GENERATE CODE */}
+                <div className="space-y-2">
+                  <label className="font-bold text-neutral-800 block">
+                    Phone Number (With Country Code)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="+91 98765 43210"
+                      value={waPhoneNumber || whatsAppRecipient}
+                      onChange={(e) => {
+                        setWaPhoneNumber(e.target.value);
+                        setWhatsAppRecipient(e.target.value);
+                      }}
+                      className="flex-1 bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#71ce34] focus:bg-white"
+                    />
+                    <button
+                      onClick={() => handleStartWhatsAppPairing()}
+                      disabled={waIsLoading}
+                      className="px-3.5 py-2 rounded bg-neutral-900 hover:bg-black text-white font-bold text-xs transition flex items-center gap-1.5 shrink-0"
+                    >
+                      {waIsLoading ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Phone className="w-3.5 h-3.5 text-[#71ce34]" />
+                      )}
+                      <span>{waStatus === "connected" ? "Re-Pair Device" : "Request Pairing Code"}</span>
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-neutral-500">
+                    Enter the phone number you want to connect to SAPIENS. The pairing code is generated securely by the Baileys multi-device engine on your server/Railway.
                   </p>
                 </div>
 
+                {/* TEST ALERT BUTTON */}
                 <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] flex items-center justify-between">
                   <div>
-                    <span className="font-bold text-neutral-900 block">Simulate Outbound WhatsApp Alert</span>
-                    <span className="text-[11px] text-neutral-500">Sends cold-chain temperature telemetry card</span>
+                    <span className="font-bold text-neutral-900 block">Send Outbound Verification Alert</span>
+                    <span className="text-[11px] text-neutral-500">Dispatches thermal card &amp; approval token</span>
                   </div>
                   <button
                     onClick={() => handleTestChannel("whatsapp")}
-                    disabled={isSendingTest}
-                    className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition"
+                    disabled={isSendingTest || waStatus !== "connected"}
+                    className={`px-3 py-1.5 rounded font-bold text-xs transition ${
+                      waStatus === "connected"
+                        ? "bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
+                        : "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                    }`}
                   >
-                    Send Test Alert
+                    {isSendingTest ? "Sending..." : "Send Test Alert"}
                   </button>
                 </div>
               </div>
@@ -1733,6 +1949,13 @@ export default function SapiensAgentStudio() {
                     icon: Shield,
                     badge: firewallStats.honeypots > 0 ? firewallStats.honeypots : 0,
                     badgeColor: "bg-orange-500",
+                  },
+                  {
+                    id: "whatsapp",
+                    label: "📱 WhatsApp Agent",
+                    icon: MessageSquare,
+                    badge: waStatus === "connected" ? "Live" : waStatus === "pairing" ? "Pair" : undefined,
+                    badgeColor: waStatus === "connected" ? "bg-emerald-600" : "bg-amber-500",
                   },
                 ].map((tab) => {
                   const Icon = tab.icon;
@@ -2259,6 +2482,220 @@ export default function SapiensAgentStudio() {
                       <p className="text-xs text-neutral-500">No firewall events yet. Run the demo scenarios to see the firewall in action.</p>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Content for Arena Tab 6: WhatsApp Agent Command Center */}
+            {arenaTab === "whatsapp" && (
+              <div className="flex-1 flex flex-col justify-between overflow-hidden bg-white">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+                  {/* Top Status & Overview Card */}
+                  <div className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs transition-colors ${
+                    waStatus === "connected"
+                      ? "bg-emerald-50/70 border-emerald-300"
+                      : waStatus === "pairing"
+                      ? "bg-amber-50/70 border-amber-300"
+                      : "bg-[#FAF8F5] border-[#E6E2DA]"
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2.5 rounded-lg text-white ${
+                        waStatus === "connected" ? "bg-emerald-600" : waStatus === "pairing" ? "bg-amber-500" : "bg-neutral-700"
+                      }`}>
+                        <MessageSquare className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-neutral-900 text-sm">SAPIENS WhatsApp Agent</h4>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold font-mono border ${
+                            waStatus === "connected"
+                              ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                              : waStatus === "pairing"
+                              ? "bg-amber-100 text-amber-800 border-amber-300 animate-pulse"
+                              : "bg-neutral-200 text-neutral-700 border-neutral-300"
+                          }`}>
+                            {waStatus === "connected" ? "● CONNECTED" : waStatus === "pairing" ? "⏳ AWAITING CODE" : "DISCONNECTED"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-neutral-600 mt-0.5">
+                          {waStatus === "connected"
+                            ? `Active Session linked to ${waLinkedJid || waPhoneNumber || "WhatsApp"}`
+                            : waStatus === "pairing"
+                            ? "Pairing code generated. Enter on mobile device."
+                            : "Connect your personal or business WhatsApp to receive alerts and approve high-risk actions."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                      <button
+                        onClick={fetchWhatsAppStatus}
+                        className="p-1.5 rounded border border-[#E0DCD4] bg-white hover:bg-neutral-50 text-neutral-700 text-xs flex items-center gap-1 transition"
+                        title="Refresh WhatsApp status"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
+                      {waStatus === "connected" ? (
+                        <button
+                          onClick={handleWhatsAppLogout}
+                          disabled={waIsLoading}
+                          className="px-3 py-1.5 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition"
+                        >
+                          Disconnect
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setShowChannelsModal(true)}
+                          className="px-3 py-1.5 rounded bg-[#71ce34] hover:bg-[#62b82c] text-white text-xs font-bold transition flex items-center gap-1"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>Pair Device</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* PAIRING CONSOLE (Visible when not connected or pairing) */}
+                  {waStatus !== "connected" && (
+                    <div className="p-4 rounded-xl bg-[#FAF8F5] border border-[#E6E2DA] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-neutral-900 flex items-center gap-1.5">
+                          <Phone className="w-4 h-4 text-[#71ce34]" /> Link WhatsApp via Phone Number &amp; Pairing Code
+                        </span>
+                        <span className="text-[10px] font-mono text-neutral-500">No QR Code Scanning Needed</span>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          placeholder="Phone number e.g. +91 98765 43210"
+                          value={waPhoneNumber}
+                          onChange={(e) => setWaPhoneNumber(e.target.value)}
+                          className="flex-1 bg-white border border-[#E0DCD4] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#71ce34]"
+                        />
+                        <button
+                          onClick={() => handleStartWhatsAppPairing()}
+                          disabled={waIsLoading}
+                          className="px-4 py-2 rounded-lg bg-neutral-900 hover:bg-black text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0"
+                        >
+                          {waIsLoading ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Key className="w-3.5 h-3.5 text-[#71ce34]" />
+                          )}
+                          <span>Request Pairing Code</span>
+                        </button>
+                      </div>
+
+                      {waPairingCode && waStatus === "pairing" && (
+                        <div className="p-4 rounded-xl bg-neutral-900 text-white space-y-3 shadow-md border border-neutral-700 animate-fade-in">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-mono uppercase tracking-wider text-[#71ce34] font-bold">
+                              🔑 Your 8-Digit Pairing Code:
+                            </span>
+                            <span className="text-[10px] text-neutral-400 font-mono">Expires in ~2 mins</span>
+                          </div>
+
+                          <div className="flex items-center justify-center gap-4 py-2.5 bg-neutral-950 rounded-lg border border-neutral-800">
+                            <span className="font-mono text-3xl sm:text-4xl font-black tracking-widest text-[#71ce34]">
+                              {waPairingCode}
+                            </span>
+                            <button
+                              onClick={copyPairingCode}
+                              className="px-3 py-1.5 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 hover:text-white transition flex items-center gap-1.5 text-xs font-mono"
+                            >
+                              {waCopied ? <Check className="w-4 h-4 text-[#71ce34]" /> : <Copy className="w-4 h-4" />}
+                              <span>{waCopied ? "Copied" : "Copy"}</span>
+                            </button>
+                          </div>
+
+                          <div className="p-3 bg-neutral-800/60 rounded-lg text-xs space-y-1 text-neutral-300">
+                            <p className="font-bold text-white mb-1">Steps on Mobile Device:</p>
+                            <p>1. Open WhatsApp &gt; <b>Settings / Menu (⋮)</b> &gt; <b>Linked Devices</b></p>
+                            <p>2. Tap <b>Link a Device</b>, then select <b>"Link with phone number instead"</b> at the bottom</p>
+                            <p>3. Enter the code <code className="text-[#71ce34] font-bold font-mono">{waPairingCode}</code></p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* LIVE WHATSAPP MESSAGE STREAM */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-neutral-900 uppercase font-mono tracking-wider flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-[#71ce34]" /> Live WhatsApp Activity Feed
+                      </h4>
+                      <span className="text-[10px] font-mono text-neutral-500">
+                        {waMessages.length} event{waMessages.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2 max-h-[380px] overflow-y-auto">
+                      {waMessages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`p-3 rounded-xl border text-xs space-y-1 transition-all animate-fade-in ${
+                            msg.direction === "inbound"
+                              ? "bg-white border-neutral-200 text-neutral-900 mr-4"
+                              : "bg-[#F4FBF0] border-[#71ce34]/30 text-neutral-900 ml-4"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold font-mono text-[10px] flex items-center gap-1">
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                msg.direction === "inbound" ? "bg-sky-500" : "bg-[#71ce34]"
+                              }`}></span>
+                              {msg.direction === "inbound" ? `📱 ${msg.senderName}` : "🛡️ SAPIENS Sentinel"}
+                            </span>
+                            <span className="text-[10px] font-mono text-neutral-400">
+                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                            </span>
+                          </div>
+                          <p className="whitespace-pre-wrap leading-relaxed text-neutral-800 text-[11px] font-mono">
+                            {msg.text}
+                          </p>
+                        </div>
+                      ))}
+
+                      {waMessages.length === 0 && (
+                        <div className="p-8 rounded-xl bg-[#FAF8F5] border border-[#E6E2DA] text-center space-y-2">
+                          <MessageCircle className="w-8 h-8 text-neutral-400 mx-auto" />
+                          <p className="font-bold text-neutral-700 text-xs">No WhatsApp messages yet</p>
+                          <p className="text-[11px] text-neutral-500 max-w-sm mx-auto">
+                            When paired, any messages received on your WhatsApp number will trigger SAPIENS Agent reasoning, and outbound breach alerts will be mirrored here.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Custom Dispatch Console */}
+                <div className="p-3 sm:p-4 border-t border-[#E6E2DA] bg-[#FAF8F5] space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-neutral-600">
+                    <span>Direct WhatsApp Dispatcher</span>
+                    <span>To: {waPhoneNumber || whatsAppRecipient || "Configured Phone"}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Type message or alert to dispatch to WhatsApp..."
+                      value={waCustomMessage}
+                      onChange={(e) => setWaCustomMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleSendWhatsAppCustom()}
+                      disabled={waStatus !== "connected"}
+                      className="flex-1 bg-white border border-[#E0DCD4] rounded-lg px-3 py-2 text-xs font-mono focus:outline-none focus:border-[#71ce34] disabled:bg-neutral-100 disabled:text-neutral-400"
+                    />
+                    <button
+                      onClick={handleSendWhatsAppCustom}
+                      disabled={waIsLoading || waStatus !== "connected" || !waCustomMessage.trim()}
+                      className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-neutral-300 text-white font-bold text-xs transition flex items-center gap-1.5 shrink-0"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send WhatsApp</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
