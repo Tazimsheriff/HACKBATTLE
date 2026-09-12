@@ -55,6 +55,8 @@ bool doorOpen = false;
 bool alarmActive = false;
 bool policySuppressed = false;
 bool buzzerBeeping = false;
+bool isDht11 = false;
+bool sensorDetected = false;
 unsigned long lastSensorReadTime = 0;
 unsigned long lastTelemetrySendTime = 0;
 unsigned long lastBuzzerToggleTime = 0;
@@ -111,15 +113,24 @@ void updateOLED() {
 
   display.setTextColor(SSD1306_WHITE);
 
-  // 2. Large Temperature Readout
-  display.setTextSize(2);
-  display.setCursor(4, 16);
-  display.printf("%+.1f C", currentTemp);
+  // 2. Temperature Readout
+  if (sensorDetected) {
+    display.setTextSize(2);
+    display.setCursor(4, 16);
+    display.printf("%+.1f C", currentTemp);
 
-  // 3. Humidity & Buzzer Indicator
-  display.setTextSize(1);
-  display.setCursor(4, 36);
-  display.printf("HUM: %.1f%%", currentHumidity);
+    display.setTextSize(1);
+    display.setCursor(4, 36);
+    display.printf("HUM:%.0f%%  %s", currentHumidity, (isDht11 ? "DHT11" : "DHT22"));
+  } else {
+    display.setTextSize(1);
+    display.setCursor(4, 16);
+    display.print("DHT: NO SENSOR DATA");
+    display.setCursor(4, 26);
+    display.print("CHECK GPIO 4 (DATA)");
+    display.setCursor(4, 36);
+    display.printf("DEMO BASELINE: %.1fC", currentTemp);
+  }
 
   display.setCursor(72, 36);
   if (buzzerBeeping) {
@@ -276,11 +287,24 @@ void loop() {
     float readT = dht.readTemperature();
     float readH = dht.readHumidity();
 
-    if (!isnan(readT)) {
-      currentTemp = readT;
+    if (isnan(readT) || isnan(readH)) {
+      // Toggle between DHT11 and DHT22 to auto-detect model
+      isDht11 = !isDht11;
+      dht = DHT(DHT_PIN, isDht11 ? DHT11 : DHT22);
+      dht.begin();
+      delay(40);
+      readT = dht.readTemperature();
+      readH = dht.readHumidity();
     }
-    if (!isnan(readH)) {
+
+    if (!isnan(readT) && !isnan(readH)) {
+      sensorDetected = true;
+      currentTemp = readT;
       currentHumidity = readH;
+      Serial.printf("[DHT OK] Model: %s | Temp: %.1f C | Hum: %.1f %%\n", (isDht11 ? "DHT11" : "DHT22"), currentTemp, currentHumidity);
+    } else {
+      sensorDetected = false;
+      Serial.println("[DHT INFO] No reading from sensor on GPIO 4. Check wiring: VCC->3.3V, GND->GND, DATA->GPIO 4.");
     }
   }
 
