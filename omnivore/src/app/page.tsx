@@ -340,7 +340,7 @@ export default function SapiensAgentStudio() {
   const [discordWebhook, setDiscordWebhook] = useState("");
   const [telegramToken, setTelegramToken] = useState("");
   const [telegramChatId, setTelegramChatId] = useState("");
-  const [whatsAppRecipient, setWhatsAppRecipient] = useState("+1 555-0199");
+  const [whatsAppRecipient, setWhatsAppRecipient] = useState("+91 96770 54449");
   const [isSendingTest, setIsSendingTest] = useState(false);
 
   // Builder Config State (synced with selectedAgent)
@@ -588,7 +588,14 @@ export default function SapiensAgentStudio() {
         setWaStatus(data.status || "disconnected");
         if (data.pairingCode) setWaPairingCode(data.pairingCode);
         if (data.userJid) setWaLinkedJid(data.userJid);
-        if (data.phoneNumber && !waPhoneNumber) setWaPhoneNumber(data.phoneNumber);
+        if (data.phoneNumber) {
+          setWaPhoneNumber(data.phoneNumber);
+          setWhatsAppRecipient(data.phoneNumber);
+        } else if (data.userJid) {
+          const raw = data.userJid.split(":")[0].replace(/[^0-9]/g, "");
+          setWaPhoneNumber("+" + raw);
+          setWhatsAppRecipient("+" + raw);
+        }
         if (data.recentMessages) setWaMessages(data.recentMessages);
       }
     } catch (_) {}
@@ -2675,7 +2682,12 @@ export default function SapiensAgentStudio() {
                 <div className="p-3 sm:p-4 border-t border-[#E6E2DA] bg-[#FAF8F5] space-y-2">
                   <div className="flex items-center justify-between text-[11px] font-mono text-neutral-600">
                     <span>Direct WhatsApp Dispatcher</span>
-                    <span>To: {waPhoneNumber || whatsAppRecipient || "Configured Phone"}</span>
+                    <span className="flex items-center gap-1.5 font-bold">
+                      <span className="text-neutral-500">To:</span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono text-[10px]">
+                        {waPhoneNumber || (waLinkedJid ? "+" + waLinkedJid.split(":")[0].replace(/[^0-9]/g, "") : whatsAppRecipient)}
+                      </span>
+                    </span>
                   </div>
                   <div className="flex gap-2">
                     <input

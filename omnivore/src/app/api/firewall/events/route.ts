@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
 import { getFirewallStats, getFirewallEventFeed } from "@/guardrails/engine";
 
+const globalForFirewall = globalThis as unknown as {
+  __sapiens_runtime_firewall_events?: any[];
+};
+
+export const RUNTIME_FIREWALL_EVENTS: any[] =
+  globalForFirewall.__sapiens_runtime_firewall_events || [];
+
+if (process.env.NODE_ENV !== "production") {
+  globalForFirewall.__sapiens_runtime_firewall_events = RUNTIME_FIREWALL_EVENTS;
+}
+
 /**
  * GET /api/firewall/events
  * Returns live firewall event feed + aggregate stats for the Trust Center dashboard.
@@ -22,17 +33,18 @@ export async function GET(req: Request) {
     const effectiveStats = (stats && stats.totalActions > 0)
       ? stats
       : {
-          totalActions: 147,
+          totalActions: 147 + RUNTIME_FIREWALL_EVENTS.length,
           allowed: 132,
           requireApproval: 11,
-          blocked: 4,
-          honeypots: 2,
-          trustScore: 92,
+          blocked: 4 + RUNTIME_FIREWALL_EVENTS.filter((e) => e.decision === "block").length,
+          honeypots: 2 + RUNTIME_FIREWALL_EVENTS.filter((e) => e.decision === "honeypot").length,
+          trustScore: Math.max(70, 92 - RUNTIME_FIREWALL_EVENTS.length * 2),
         };
 
-    const effectiveEvents = events.length > 0
-      ? events
-      : DEMO_FIREWALL_EVENTS;
+    const effectiveEvents = [
+      ...RUNTIME_FIREWALL_EVENTS,
+      ...(events.length > 0 ? events : DEMO_FIREWALL_EVENTS),
+    ].slice(0, limit);
 
     return NextResponse.json({
       success: true,
@@ -64,6 +76,24 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    if (body.isSecurityViolation) {
+      const secEvent = {
+        id: body.id || `sec-${Date.now()}`,
+        agentId: body.agentId || "sapiens-whatsapp-sentinel",
+        toolName: body.toolName || "whatsapp_admin_kick",
+        riskScore: body.riskScore || 98,
+        riskLabel: "CRITICAL",
+        decision: "block",
+        reason: body.reason || "Unauthorized administrative command blocked by SAPIENS Firewall",
+        createdAt: new Date().toISOString(),
+        isHoneypot: false,
+      };
+      RUNTIME_FIREWALL_EVENTS.unshift(secEvent);
+      if (RUNTIME_FIREWALL_EVENTS.length > 50) RUNTIME_FIREWALL_EVENTS.pop();
+      return NextResponse.json({ success: true, event: secEvent });
+    }
+
     const { toolName, agentId = "demo-agent", context = {} } = body;
 
     // Import here to avoid circular issues

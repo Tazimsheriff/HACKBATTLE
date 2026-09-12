@@ -222,7 +222,8 @@ class WhatsAppService {
           // Allow processing if inbound OR if sent from self with command prefix ! or /
           const shouldProcess = !isFromMe || text.startsWith("!") || text.startsWith("/");
           if (shouldProcess) {
-            await this.handleInboundCommand(from, text, senderName);
+            const senderJid = msg.key.participant || msg.key.remoteJid || "";
+            await this.handleInboundCommand(from, text, senderName, senderJid, isFromMe);
           }
         }
       });
@@ -247,11 +248,109 @@ class WhatsAppService {
   }
 
   /**
+   * Check if a sender has administrative privileges (bot owner or group admin)
+   */
+  private async isSenderAdmin(from: string, senderJid: string, isFromMe: boolean): Promise<boolean> {
+    if (isFromMe) return true;
+    const botOwner =
+      this.phoneNumber?.replace(/[^0-9]/g, "") ||
+      (this.sock?.user?.id ? this.sock.user.id.split(":")[0].replace(/[^0-9]/g, "") : "");
+    const cleanSender = senderJid.replace(/[^0-9]/g, "");
+    if (botOwner && cleanSender.startsWith(botOwner)) return true;
+
+    // In direct chat with another user, they are not the bot admin
+    if (!from.endsWith("@g.us")) {
+      return false;
+    }
+
+    // In a group, check group metadata for admin rights
+    try {
+      if (!this.sock) return false;
+      const groupMeta = await this.sock.groupMetadata(from);
+      const participant = groupMeta.participants.find(
+        (p) =>
+          p.id === senderJid ||
+          p.id.split("@")[0] === cleanSender ||
+          (p as any).lid === senderJid
+      );
+      return Boolean(participant?.admin === "admin" || participant?.admin === "superadmin");
+    } catch (err) {
+      console.warn("[WhatsAppService] Group metadata admin check fallback:", err);
+      return false;
+    }
+  }
+
+  /**
+   * Report security violation to SAPIENS Agent Firewall
+   */
+  private async reportFirewallViolation(details: {
+    id: string;
+    toolName: string;
+    riskScore: number;
+    reason: string;
+    senderName: string;
+    from: string;
+  }): Promise<void> {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+      await fetch(`${baseUrl}/api/firewall/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isSecurityViolation: true,
+          id: details.id,
+          toolName: details.toolName,
+          riskScore: details.riskScore,
+          reason: details.reason,
+        }),
+      });
+    } catch (e) {
+      console.warn("[WhatsAppService] Failed to post violation to firewall API:", e);
+    }
+  }
+
+  /**
    * Parse and execute incoming commands from WhatsApp
    */
-  private async handleInboundCommand(from: string, text: string, senderName: string): Promise<void> {
+  private async handleInboundCommand(
+    from: string,
+    text: string,
+    senderName: string,
+    senderJid: string,
+    isFromMe: boolean
+  ): Promise<void> {
     const trimmed = text.trim();
     const lower = trimmed.toLowerCase();
+
+    // 0. PRIVILEGE ESCALATION INTERCEPTION: Administrative / destructive commands (kick, ban, remove, kill, etc.)
+    const ADMIN_COMMAND_REGEX = /^[!/](kick|ban|remove|kill|shutdown|delete|purge|reset|admin|drop|promote|demote)(\s+.*)?$/i;
+    if (ADMIN_COMMAND_REGEX.test(trimmed)) {
+      const isAdmin = await this.isSenderAdmin(from, senderJid, isFromMe);
+      if (!isAdmin) {
+        const secId = `SEC-${Date.now().toString(36).toUpperCase()}`;
+        const cmdName = trimmed.split(" ")[0].replace(/^[!/]/, "").toLowerCase();
+        const toolName = `whatsapp_admin_${cmdName}`;
+        const violationReason = `🚫 PRIVILEGE ESCALATION BLOCKED: Unauthorized command "${trimmed}" attempted by non-admin member "${senderName}" (${senderJid}) in ${from.includes("@g.us") ? "group" : "chat"}`;
+
+        await this.reportFirewallViolation({
+          id: secId,
+          toolName,
+          riskScore: 98,
+          reason: violationReason,
+          senderName,
+          from,
+        });
+
+        const alertReply =
+          `🚫 *SAPIENS AGENT FIREWALL: ACCESS DENIED*\n\n` +
+          `⚠️ *Security Violation:* Unauthorized command attempt (*${trimmed}*) by *${senderName}*.\n` +
+          `🛡️ *Policy:* Member removal, moderation, and administrative commands strictly require verified Administrator or Bot Owner privileges.\n` +
+          `🔒 *Audit Log:* Incident recorded as \`${secId}\` in SAPIENS Trust Center (Risk Score: *98/100 • BLOCKED*).`;
+
+        await this.sendMessage(from, alertReply);
+        return;
+      }
+    }
 
     // 1. Status / Ping command
     if (lower === "!ping" || lower === "!status" || lower === "/status") {
@@ -393,11 +492,21 @@ class WhatsAppService {
 
     try {
       let jid = recipient;
-      if (!jid.includes("@")) {
+      if (jid.endsWith("@lid")) {
+        // LID is WhatsApp Linked Identity. Baileys cannot route messages directly to an LID JID.
+        // Route to the user's phone number JID.
+        const phone =
+          this.phoneNumber ||
+          (this.sock?.user?.id ? this.sock.user.id.split(":")[0] : null);
+        if (phone) {
+          jid = `${phone}@s.whatsapp.net`;
+        }
+      } else if (!jid.includes("@")) {
         const clean = recipient.replace(/[^0-9]/g, "");
         jid = `${clean}@s.whatsapp.net`;
       }
 
+      console.log(`[WhatsAppService] 📤 Dispatching to: ${jid} (raw: ${recipient})`);
       await this.sock.sendMessage(jid, { text });
 
       this.addRecentMessage({
@@ -451,11 +560,20 @@ class WhatsAppService {
    * Get current connection status info
    */
   public getStatus(): WhatsAppStatusInfo {
+    const rawPhone =
+      this.phoneNumber ||
+      (this.sock?.user?.id ? this.sock.user.id.split(":")[0].replace(/[^0-9]/g, "") : null);
+    const activePhone = rawPhone
+      ? rawPhone.startsWith("+")
+        ? rawPhone
+        : `+${rawPhone}`
+      : null;
+
     return {
       status: this.status,
-      phoneNumber: this.phoneNumber,
+      phoneNumber: activePhone,
       pairingCode: this.pairingCode,
-      userJid: this.userJid,
+      userJid: this.sock?.user?.id || this.userJid,
       lastConnectedAt: this.lastConnectedAt,
       error: this.lastError,
       recentMessages: [...this.recentMessages],
