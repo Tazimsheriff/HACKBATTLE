@@ -1,0 +1,15 @@
+{
+  "name": "sapiens-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SAPIENS Autonomous Agent & Cold-Chain Sentinel with Multi-Device WhatsApp Agent and Hardware ESP32 Integration",
+  "scripts": {
+    "dev": "npm --prefix omnivore run dev",
+    "build": "npm --prefix omnivore run build",
+    "start": "npm --prefix omnivore run start",
+    "lint": "npm --prefix omnivore run lint"
+  },
+  "engines": {
+    "node": ">=20.x"
+  }
+}
