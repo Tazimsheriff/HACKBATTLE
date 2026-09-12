@@ -16,6 +16,7 @@ export async function POST(req: Request) {
       temperature,
       humidity,
       doorOpen = false,
+      acousticDb,
     } = body;
 
     if (temperature === undefined) {
@@ -32,6 +33,9 @@ export async function POST(req: Request) {
     if (temperature > TEMP_CRITICAL_HIGH) {
       anomalyFlag = true;
       anomalyReason = `Critical thermal breach: ${temperature.toFixed(1)}°C exceeds threshold of ${TEMP_CRITICAL_HIGH}°C`;
+    } else if (acousticDb && acousticDb > 80.0) {
+      anomalyFlag = true;
+      anomalyReason = `Acoustic signature anomaly: ${Number(acousticDb).toFixed(1)} dB (compressor bearing friction or sound breach)`;
     } else if (doorOpen) {
       anomalyFlag = true;
       anomalyReason = "Door opened during active cold storage";
