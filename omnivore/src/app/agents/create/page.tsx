@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -16,35 +16,62 @@ import {
   Zap,
   Mail,
   Globe,
-  HardDrive,
   Loader2,
-  RefreshCw,
+  Plus,
+  ExternalLink,
+  Search,
+  Filter,
+  X,
+  Code2,
+  CheckCircle2,
   Info,
 } from "lucide-react";
+import { AgentSkill, SKILLS_SH_CATALOG } from "@/skills/registry";
 
 export default function CreateAgentPage() {
   const router = useRouter();
 
+  // Agent State
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [goal, setGoal] = useState("");
   const [model, setModel] = useState("open-mistral-nemo");
   const [temperature, setTemperature] = useState(0.2);
 
-  // Hardware binding is completely optional
+  // Hardware binding (completely optional)
   const [hasHardware, setHasHardware] = useState(false);
   const [hardwareDeviceId, setHardwareDeviceId] = useState("ESP32-S3-COLD-01");
 
-  // Instructions start clean and adapt to the user's mission
+  // Instructions
   const [instructions, setInstructions] = useState("");
   const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
 
-  // Tools list
+  // Available Skills Registry
+  const [availableSkills, setAvailableSkills] = useState<AgentSkill[]>(SKILLS_SH_CATALOG);
   const [selectedTools, setSelectedTools] = useState<string[]>([
     "query_memory",
     "send_notification",
   ]);
+  const [skillCategoryFilter, setSkillCategoryFilter] = useState<string>("all");
+  const [skillSearchQuery, setSkillSearchQuery] = useState("");
+  const [isMatchingSkills, setIsMatchingSkills] = useState(false);
+  const [skillsToast, setSkillsToast] = useState<string | null>(null);
 
+  // Custom Skill Modal State
+  const [showCustomSkillModal, setShowCustomSkillModal] = useState(false);
+  const [customSkillPrompt, setCustomSkillPrompt] = useState("");
+  const [isGeneratingSkill, setIsGeneratingSkill] = useState(false);
+  const [newSkillName, setNewSkillName] = useState("");
+  const [newSkillFunction, setNewSkillFunction] = useState("");
+  const [newSkillDesc, setNewSkillDesc] = useState("");
+  const [newSkillCategory, setNewSkillCategory] = useState<AgentSkill["category"]>("productivity");
+  const [newSkillRisk, setNewSkillRisk] = useState<"LOW" | "MEDIUM" | "HIGH">("LOW");
+  const [newSkillParams, setNewSkillParams] = useState<
+    Array<{ name: string; type: string; required: boolean; description: string }>
+  >([{ name: "input", type: "string", required: true, description: "Input data or query" }]);
+  const [isSavingSkill, setIsSavingSkill] = useState(false);
+
+  // Connected Channels
   const [selectedChannels, setSelectedChannels] = useState<{
     whatsapp: boolean;
     telegram: boolean;
@@ -56,6 +83,18 @@ export default function CreateAgentPage() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch Skills on Mount
+  useEffect(() => {
+    fetch("/api/skills")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.skills?.length) {
+          setAvailableSkills(data.skills);
+        }
+      })
+      .catch((err) => console.warn("Could not load skills catalog:", err));
+  }, []);
 
   // Dynamic Prompt Generator powered by Mistral AI
   const handleAutoGeneratePrompt = async () => {
@@ -81,19 +120,8 @@ export default function CreateAgentPage() {
       if (data.prompt) {
         setInstructions(data.prompt);
 
-        // Auto-select relevant tools based on mission
-        const fullText = (name + " " + description).toLowerCase();
-        const newTools = new Set(selectedTools);
-        if (fullText.includes("mail") || fullText.includes("gmail") || fullText.includes("inbox")) {
-          newTools.add("read_emails");
-        }
-        if (fullText.includes("search") || fullText.includes("web") || fullText.includes("research")) {
-          newTools.add("web_search");
-        }
-        if (fullText.includes("sensor") || fullText.includes("temperature") || hasHardware) {
-          newTools.add("get_sensor_data");
-        }
-        setSelectedTools(Array.from(newTools));
+        // Also automatically discover skills for this mission!
+        handleMatchSkillsFromRegistry();
       }
     } catch (err) {
       console.error("Prompt generation failed:", err);
@@ -102,14 +130,133 @@ export default function CreateAgentPage() {
     }
   };
 
-  // Diverse Template Quick Loader
+  // Discover & Match Skills from skills.sh
+  const handleMatchSkillsFromRegistry = async () => {
+    if (!name.trim() && !description.trim()) {
+      alert("Please enter an Agent Name or Mission Description so we can match skills from skills.sh.");
+      return;
+    }
+
+    setIsMatchingSkills(true);
+    try {
+      const res = await fetch("/api/skills/match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agentName: name,
+          mission: description,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.matchedIds?.length) {
+        const unionTools = Array.from(new Set([...selectedTools, ...data.matchedIds]));
+        setSelectedTools(unionTools);
+        setSkillsToast(`Matched ${data.matchedIds.length} skills from skills.sh for this mission!`);
+        setTimeout(() => setSkillsToast(null), 5000);
+      }
+    } catch (e) {
+      console.error("Skills.sh matching error:", e);
+    } finally {
+      setIsMatchingSkills(false);
+    }
+  };
+
+  // AI Auto-Draft Custom Skill using Mistral
+  const handleAiDraftSkill = async () => {
+    if (!customSkillPrompt.trim() && !description.trim()) {
+      alert("Please enter a short description of what the skill should do.");
+      return;
+    }
+
+    setIsGeneratingSkill(true);
+    try {
+      const res = await fetch("/api/skills/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: customSkillPrompt || description,
+          mission: description,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.skill) {
+        setNewSkillName(data.skill.name || "");
+        setNewSkillFunction(data.skill.functionName || "");
+        setNewSkillDesc(data.skill.description || "");
+        setNewSkillCategory(data.skill.category || "productivity");
+        setNewSkillRisk(data.skill.risk || "LOW");
+        if (data.skill.parameters?.length) {
+          setNewSkillParams(data.skill.parameters);
+        }
+      }
+    } catch (e) {
+      console.error("AI Skill generation error:", e);
+    } finally {
+      setIsGeneratingSkill(false);
+    }
+  };
+
+  // Save and Register Custom Skill (Proper creation & validation)
+  const handleSaveCustomSkill = async () => {
+    if (!newSkillName.trim()) {
+      alert("Please provide a Skill Name.");
+      return;
+    }
+    if (!newSkillDesc.trim() || newSkillDesc.trim().length < 10) {
+      alert("Please provide a descriptive explanation of what the skill executes (min 10 chars).");
+      return;
+    }
+
+    setIsSavingSkill(true);
+    try {
+      const res = await fetch("/api/skills", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newSkillName,
+          functionName: newSkillFunction || newSkillName,
+          description: newSkillDesc,
+          category: newSkillCategory,
+          risk: newSkillRisk,
+          parameters: newSkillParams,
+          source: "custom",
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success && data.skill) {
+        setAvailableSkills((prev) => [data.skill, ...prev.filter((s) => s.id !== data.skill.id)]);
+        setSelectedTools((prev) => Array.from(new Set([...prev, data.skill.id])));
+        setShowCustomSkillModal(false);
+        setSkillsToast(`Custom skill ${data.skill.functionName} successfully created and registered!`);
+        setTimeout(() => setSkillsToast(null), 5000);
+
+        // Reset form
+        setCustomSkillPrompt("");
+        setNewSkillName("");
+        setNewSkillFunction("");
+        setNewSkillDesc("");
+      } else {
+        alert(data.error || "Failed to create skill.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error saving custom skill.");
+    } finally {
+      setIsSavingSkill(false);
+    }
+  };
+
+  // Quick Starter Templates
   const handleApplyTemplate = (type: "gmail" | "research" | "devops" | "coldchain") => {
     if (type === "gmail") {
       setName("Gmail Priority Sentinel");
       setDescription("Monitor Gmail inbox, filter noise, extract urgent emails, and provide priority digests.");
       setGoal("Read Gmail inbox and surface actionable high-priority emails.");
       setHasHardware(false);
-      setSelectedTools(["read_emails", "query_memory", "send_notification"]);
+      setSelectedTools(["gmail_read_inbox", "gmail_send_digest", "query_memory", "send_notification"]);
       setInstructions(`# **GMAIL PRIORITY SENTINEL**
 **Role:** Autonomous Email Intelligence & Prioritization Assistant
 
@@ -128,7 +275,7 @@ export default function CreateAgentPage() {
       setDescription("Perform automated web research, synthesize data sources, and compile executive briefings.");
       setGoal("Conduct structured web research and produce factual analytical summaries.");
       setHasHardware(false);
-      setSelectedTools(["web_search", "query_memory", "send_notification"]);
+      setSelectedTools(["web_search", "pdf_doc_reader", "query_memory", "send_notification"]);
       setInstructions(`# **WEB RESEARCH & MARKET SENTINEL**
 **Role:** Autonomous Intelligence & Source Synthesis Analyst
 
@@ -145,7 +292,7 @@ export default function CreateAgentPage() {
       setDescription("Track error webhooks, query deployment health, and manage incident responses.");
       setGoal("Monitor system telemetry and alert on deployment regressions.");
       setHasHardware(false);
-      setSelectedTools(["database_query", "query_memory", "send_notification"]);
+      setSelectedTools(["github_issue_monitor", "database_query", "query_memory", "send_notification"]);
       setInstructions(`# **DEVOPS & INCIDENT SENTINEL**
 **Role:** Infrastructure Watchdog & Incident Triage Agent
 
@@ -163,7 +310,7 @@ export default function CreateAgentPage() {
       setGoal("Maintain container COLD-01 at -18°C and suppress false alarms.");
       setHasHardware(true);
       setHardwareDeviceId("ESP32-S3-COLD-01");
-      setSelectedTools(["get_sensor_data", "query_memory", "send_notification", "emergency_relay_cutoff"]);
+      setSelectedTools(["get_sensor_data", "emergency_relay_cutoff", "query_memory", "send_notification"]);
       setInstructions(`# **VACCINE STORAGE SENTINEL**
 **Role:** IoT Physical Storage Sentinel (ESP32-S3-COLD-01)
 
@@ -215,11 +362,28 @@ export default function CreateAgentPage() {
     }
   };
 
+  // Filter skills based on category and search
+  const filteredSkills = availableSkills.filter((s) => {
+    if (skillCategoryFilter !== "all" && s.category !== skillCategoryFilter) {
+      return false;
+    }
+    if (skillSearchQuery.trim()) {
+      const q = skillSearchQuery.toLowerCase();
+      const match =
+        s.name.toLowerCase().includes(q) ||
+        s.functionName.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-[#0C0C0D] flex flex-col font-sans selection:bg-[#FA500F] selection:text-white">
       {/* Top Header */}
       <header className="border-b border-[#E6E2DA] bg-[#FAF8F5]/90 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link
               href="/"
@@ -261,14 +425,14 @@ export default function CreateAgentPage() {
       </header>
 
       {/* Main Form Body */}
-      <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-8 space-y-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-8 space-y-8">
         {/* Title */}
         <div className="space-y-1">
           <h1 className="text-2xl sm:text-3xl font-mistral-display tracking-tight text-[#0C0C0D]">
             Create a New Autonomous Agent
           </h1>
           <p className="text-xs text-neutral-600">
-            Build custom software or hardware agents. Configure intelligence models, instructions, and safety guardrails.
+            Build custom software or hardware agents. Configure intelligence models, dynamic instructions, and skills from skills.sh.
           </p>
         </div>
 
@@ -514,159 +678,212 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
             </div>
           </div>
 
-          {/* Section 4: Capabilities & Tools */}
+          {/* Section 4: Capabilities & Tools (Integrated with skills.sh & Custom Skill Builder) */}
           <div className="p-6 rounded-xl bg-white border border-[#E6E2DA] shadow-xs space-y-5">
-            <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-700 font-mono flex items-center gap-2">
-                <Wrench className="w-4 h-4" /> 4. Capabilities &amp; Tool Access
-              </h2>
-              <p className="text-[11px] text-neutral-500">
-                Choose the tools this agent is authorized to invoke. Tools are classified by execution risk.
-              </p>
+            {/* Header with Skills.sh Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#F0EBE1] pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-700 font-mono flex items-center gap-2">
+                    <Wrench className="w-4 h-4" /> 4. Capabilities &amp; Tool Access
+                  </h2>
+                  <a
+                    href="https://skills.sh"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-[#0066FF] border border-blue-200 hover:bg-blue-100 transition flex items-center gap-1 font-bold"
+                  >
+                    <span>skills.sh Hub</span>
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                </div>
+                <p className="text-[11px] text-neutral-500 mt-0.5">
+                  Select pre-indexed tools from <span className="font-semibold text-neutral-700">skills.sh</span>, discover matching skills for your mission, or create your own custom tools.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleMatchSkillsFromRegistry}
+                  disabled={isMatchingSkills}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                  title="Search and match skills from skills.sh for this mission"
+                >
+                  {isMatchingSkills ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Matching skills.sh...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Match from skills.sh</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowCustomSkillModal(true)}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Create Custom Skill</span>
+                </button>
+              </div>
             </div>
 
-            {/* Software Capabilities */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-neutral-700 block uppercase tracking-wider font-mono">
-                Software &amp; Productivity Tools
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            {/* Notification Toast */}
+            {skillsToast && (
+              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs flex items-center gap-2 font-medium animate-fadeIn">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{skillsToast}</span>
+              </div>
+            )}
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              {/* Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
                 {[
-                  {
-                    id: "read_emails",
-                    name: "read_emails()",
-                    desc: "Scan and parse Gmail inbox messages",
-                    risk: "LOW",
-                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                  },
-                  {
-                    id: "web_search",
-                    name: "web_search()",
-                    desc: "Real-time web search and research lookups",
-                    risk: "LOW",
-                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                  },
-                  {
-                    id: "query_memory",
-                    name: "query_memory()",
-                    desc: "Episodic memory & learned behavior query",
-                    risk: "LOW",
-                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                  },
-                  {
-                    id: "send_notification",
-                    name: "send_notification()",
-                    desc: "Broadcast alerts via WhatsApp, Discord, Telegram",
-                    risk: "MEDIUM",
-                    color: "bg-amber-50 text-amber-800 border-amber-300",
-                  },
-                  {
-                    id: "database_query",
-                    name: "database_query()",
-                    desc: "Read records, audit logs, and application state",
-                    risk: "LOW",
-                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                  },
-                ].map((tool) => (
-                  <div
-                    key={tool.id}
-                    onClick={() => {
-                      if (selectedTools.includes(tool.id)) {
-                        setSelectedTools(selectedTools.filter((t) => t !== tool.id));
-                      } else {
-                        setSelectedTools([...selectedTools, tool.id]);
-                      }
-                    }}
-                    className={`p-3 rounded-lg border cursor-pointer flex items-center justify-between transition ${
-                      selectedTools.includes(tool.id)
-                        ? "bg-white border-[#FA500F] shadow-2xs"
-                        : "bg-[#FAF8F5] border-[#EAE6DE] opacity-60"
+                  { id: "all", label: "All Skills" },
+                  { id: "productivity", label: "Productivity (Gmail)" },
+                  { id: "search", label: "Search & Web" },
+                  { id: "data", label: "Data & Memory" },
+                  { id: "devops", label: "DevOps" },
+                  { id: "iot", label: "Hardware & IoT" },
+                  { id: "custom", label: "Custom" },
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSkillCategoryFilter(cat.id)}
+                    className={`px-2.5 py-1 rounded text-[11px] font-medium whitespace-nowrap transition cursor-pointer ${
+                      skillCategoryFilter === cat.id
+                        ? "bg-[#0C0C0D] text-white font-bold"
+                        : "bg-[#FAF8F5] hover:bg-[#EFECE6] text-neutral-700 border border-[#E6E2DA]"
                     }`}
                   >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-neutral-900">{tool.name}</span>
-                        <span className={`px-1.5 py-0.2 text-[9px] font-mono border rounded ${tool.color}`}>
-                          {tool.risk}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-neutral-500">{tool.desc}</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={selectedTools.includes(tool.id)}
-                      onChange={() => {}}
-                      className="accent-[#FA500F] w-4 h-4 pointer-events-none"
-                    />
-                  </div>
+                    {cat.label}
+                  </button>
                 ))}
+              </div>
+
+              {/* Search Box */}
+              <div className="relative min-w-[200px]">
+                <Search className="w-3.5 h-3.5 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search skills..."
+                  value={skillSearchQuery}
+                  onChange={(e) => setSkillSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#E0DCD4] text-xs text-neutral-800 focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                />
               </div>
             </div>
 
-            {/* Optional Hardware Capabilities */}
-            <div className="space-y-2 pt-2 border-t border-[#F0EBE1]">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-neutral-700 block uppercase tracking-wider font-mono">
-                  Physical Hardware &amp; IoT Tools (Optional)
-                </span>
-                {!hasHardware && (
-                  <span className="text-[10px] text-neutral-400 font-mono italic">
-                    Enable hardware binding in Section 1 to use with physical devices
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                {[
-                  {
-                    id: "get_sensor_data",
-                    name: "get_sensor_data()",
-                    desc: "Sample real-time I2C/SPI sensor telemetry from device",
-                    risk: "LOW",
-                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                  },
-                  {
-                    id: "emergency_relay_cutoff",
-                    name: "emergency_relay_cutoff()",
-                    desc: "Physical actuator cutoff (Strict Human Approval Gated)",
-                    risk: "HIGH",
-                    color: "bg-rose-50 text-rose-700 border-rose-300",
-                  },
-                ].map((tool) => (
+            {/* Skills Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {filteredSkills.map((skill) => {
+                const isSelected = selectedTools.includes(skill.id);
+                return (
                   <div
-                    key={tool.id}
+                    key={skill.id}
                     onClick={() => {
-                      if (selectedTools.includes(tool.id)) {
-                        setSelectedTools(selectedTools.filter((t) => t !== tool.id));
+                      if (isSelected) {
+                        setSelectedTools(selectedTools.filter((t) => t !== skill.id));
                       } else {
-                        setSelectedTools([...selectedTools, tool.id]);
+                        setSelectedTools([...selectedTools, skill.id]);
                       }
                     }}
-                    className={`p-3 rounded-lg border cursor-pointer flex items-center justify-between transition ${
-                      selectedTools.includes(tool.id)
-                        ? "bg-white border-[#FA500F] shadow-2xs"
-                        : "bg-[#FAF8F5] border-[#EAE6DE] opacity-60"
+                    className={`p-3.5 rounded-xl border cursor-pointer flex flex-col justify-between transition ${
+                      isSelected
+                        ? "bg-white border-[#FA500F] shadow-2xs ring-1 ring-[#FA500F]/20"
+                        : "bg-[#FAF8F5] border-[#EAE6DE] hover:border-neutral-400 opacity-80"
                     }`}
                   >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-neutral-900">{tool.name}</span>
-                        <span className={`px-1.5 py-0.2 text-[9px] font-mono border rounded ${tool.color}`}>
-                          {tool.risk}
+                    <div className="space-y-2">
+                      {/* Top Badges */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono font-bold text-neutral-900 text-xs">
+                            {skill.functionName}
+                          </span>
+
+                          {/* Source Badge */}
+                          {skill.source === "skills.sh" ? (
+                            <span className="px-1.5 py-0.2 text-[9px] font-mono border rounded bg-blue-50 text-[#0066FF] border-blue-200 font-bold">
+                              skills.sh
+                            </span>
+                          ) : skill.source === "custom" ? (
+                            <span className="px-1.5 py-0.2 text-[9px] font-mono border rounded bg-purple-50 text-purple-700 border-purple-200 font-bold">
+                              custom
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 text-[9px] font-mono border rounded bg-neutral-100 text-neutral-600 border-neutral-300 font-bold">
+                              core
+                            </span>
+                          )}
+
+                          {/* Risk Badge */}
+                          <span
+                            className={`px-1.5 py-0.2 text-[9px] font-mono border rounded font-bold ${
+                              skill.risk === "LOW"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-300"
+                                : skill.risk === "MEDIUM"
+                                ? "bg-amber-50 text-amber-800 border-amber-300"
+                                : "bg-rose-50 text-rose-700 border-rose-300"
+                            }`}
+                          >
+                            {skill.risk}
+                          </span>
+                        </div>
+
+                        {/* Checkbox */}
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="accent-[#FA500F] w-4 h-4 pointer-events-none shrink-0"
+                        />
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-[11px] text-neutral-600 leading-relaxed">
+                        {skill.description}
+                      </p>
+                    </div>
+
+                    {/* Parameters Preview */}
+                    {skill.parameters && skill.parameters.length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-[#F0EBE1] flex items-center justify-between text-[10px] font-mono text-neutral-500">
+                        <span>
+                          params: {skill.parameters.map((p) => p.name).join(", ")}
+                        </span>
+                        <span className="capitalize text-neutral-400">
+                          {skill.category}
                         </span>
                       </div>
-                      <p className="text-[11px] text-neutral-500">{tool.desc}</p>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={selectedTools.includes(tool.id)}
-                      onChange={() => {}}
-                      className="accent-[#FA500F] w-4 h-4 pointer-events-none"
-                    />
+                    )}
                   </div>
-                ))}
-              </div>
+                );
+              })}
             </div>
+
+            {filteredSkills.length === 0 && (
+              <div className="p-8 text-center bg-[#FAF8F5] rounded-xl border border-dashed border-[#E0DCD4] space-y-2">
+                <p className="text-xs text-neutral-600">No skills match the current filter.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowCustomSkillModal(true)}
+                  className="px-3 py-1.5 bg-[#FA500F] text-white text-xs font-bold rounded shadow-xs"
+                >
+                  Create Custom Skill
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Section 5: Channels */}
@@ -742,6 +959,237 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
           </button>
         </div>
       </main>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* MODAL: CREATE CUSTOM SKILL (WITH MISTRAL AI AUTODRAFT)         */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {showCustomSkillModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-[#E6E2DA] max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-[#E6E2DA] pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-[#FA500F] text-white">
+                  <Code2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-[#0C0C0D]">Create &amp; Register Custom Skill</h3>
+                  <p className="text-[11px] text-neutral-500">
+                    Compliant with <span className="font-semibold text-[#0066FF]">skills.sh</span> and Eve tool runtime.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCustomSkillModal(false)}
+                className="text-neutral-400 hover:text-black cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* AI Auto-Draft Prompt Banner */}
+            <div className="p-3 rounded-xl bg-[#FFF7F2] border border-[#FA500F]/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#FA500F] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" /> AI Skill Architect (Mistral)
+                </span>
+                <span className="text-[10px] font-mono text-neutral-500">Auto-Generates Valid Schema</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. Read Gmail inbox attachments and extract invoices..."
+                  value={customSkillPrompt}
+                  onChange={(e) => setCustomSkillPrompt(e.target.value)}
+                  className="flex-1 bg-white border border-[#E0DCD4] rounded-lg p-2 text-xs text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
+                />
+                <button
+                  type="button"
+                  onClick={handleAiDraftSkill}
+                  disabled={isGeneratingSkill}
+                  className="px-3 py-1.5 rounded-lg bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs shrink-0 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  {isGeneratingSkill ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-3.5 h-3.5" />
+                  )}
+                  <span>Draft</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Form Fields */}
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-800 block">Skill Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Gmail Priority Filter"
+                    value={newSkillName}
+                    onChange={(e) => {
+                      setNewSkillName(e.target.value);
+                      if (!newSkillFunction) {
+                        setNewSkillFunction(
+                          e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "_") + "()"
+                        );
+                      }
+                    }}
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-800 block">Function Signature *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. filter_urgent_emails()"
+                    value={newSkillFunction}
+                    onChange={(e) => setNewSkillFunction(e.target.value)}
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-800 block">Category</label>
+                  <select
+                    value={newSkillCategory}
+                    onChange={(e) => setNewSkillCategory(e.target.value as any)}
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs focus:outline-none focus:border-[#FA500F]"
+                  >
+                    <option value="productivity">Productivity (Gmail, Office)</option>
+                    <option value="search">Search &amp; Research</option>
+                    <option value="data">Data &amp; Memory</option>
+                    <option value="devops">DevOps &amp; Infrastructure</option>
+                    <option value="communications">Communications &amp; Alerts</option>
+                    <option value="iot">Hardware &amp; IoT</option>
+                    <option value="custom">Custom Utility</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-neutral-800 block">Execution Risk Classification</label>
+                  <select
+                    value={newSkillRisk}
+                    onChange={(e) => setNewSkillRisk(e.target.value as any)}
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs font-bold focus:outline-none focus:border-[#FA500F]"
+                  >
+                    <option value="LOW">LOW (Read-only, auto-approved)</option>
+                    <option value="MEDIUM">MEDIUM (Notifications, external webhooks)</option>
+                    <option value="HIGH">HIGH (Physical relay cutoff, human gated)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-neutral-800 block">Operational Description *</label>
+                <textarea
+                  rows={3}
+                  required
+                  placeholder="Explain exactly what this skill executes, what APIs it calls, and when the agent should trigger it..."
+                  value={newSkillDesc}
+                  onChange={(e) => setNewSkillDesc(e.target.value)}
+                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs focus:outline-none focus:border-[#FA500F] focus:bg-white resize-none"
+                />
+              </div>
+
+              {/* Parameters List */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-neutral-800">Parameters Schema</label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNewSkillParams([
+                        ...newSkillParams,
+                        { name: "", type: "string", required: true, description: "" },
+                      ])
+                    }
+                    className="text-[10px] font-bold text-[#FA500F] hover:underline cursor-pointer"
+                  >
+                    + Add Parameter
+                  </button>
+                </div>
+
+                {newSkillParams.map((p, idx) => (
+                  <div key={idx} className="flex items-center gap-2 bg-[#FAF8F5] p-2 rounded-lg border border-[#EAE6DE]">
+                    <input
+                      type="text"
+                      placeholder="name"
+                      value={p.name}
+                      onChange={(e) => {
+                        const updated = [...newSkillParams];
+                        updated[idx].name = e.target.value;
+                        setNewSkillParams(updated);
+                      }}
+                      className="w-28 bg-white border border-[#E0DCD4] rounded p-1 text-xs font-mono"
+                    />
+                    <select
+                      value={p.type}
+                      onChange={(e) => {
+                        const updated = [...newSkillParams];
+                        updated[idx].type = e.target.value;
+                        setNewSkillParams(updated);
+                      }}
+                      className="bg-white border border-[#E0DCD4] rounded p-1 text-xs font-mono"
+                    >
+                      <option value="string">string</option>
+                      <option value="number">number</option>
+                      <option value="boolean">boolean</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="description"
+                      value={p.description}
+                      onChange={(e) => {
+                        const updated = [...newSkillParams];
+                        updated[idx].description = e.target.value;
+                        setNewSkillParams(updated);
+                      }}
+                      className="flex-1 bg-white border border-[#E0DCD4] rounded p-1 text-xs"
+                    />
+                    {newSkillParams.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setNewSkillParams(newSkillParams.filter((_, i) => i !== idx))}
+                        className="text-neutral-400 hover:text-red-500 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E6E2DA]">
+              <button
+                type="button"
+                onClick={() => setShowCustomSkillModal(false)}
+                className="px-4 py-2 rounded-lg text-xs font-medium text-neutral-600 hover:text-black cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCustomSkill}
+                disabled={isSavingSkill}
+                className="px-5 py-2 rounded-lg bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                <Check className="w-3.5 h-3.5" />
+                {isSavingSkill ? "Registering Tool..." : "Validate & Register Skill"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
