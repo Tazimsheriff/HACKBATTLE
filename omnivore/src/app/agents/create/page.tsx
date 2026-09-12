@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Bot,
   ArrowLeft,
@@ -352,11 +353,13 @@ export default function CreateAgentPage() {
       const data = await res.json();
       if (res.ok && data.agent) {
         if (typeof window !== "undefined") {
-          localStorage.setItem("omnivore_active_agent_id", data.agent.id);
+          localStorage.setItem("sapiens_active_agent_id", data.agent.id);
           try {
-            const local = JSON.parse(localStorage.getItem("omnivore_custom_agents") || "[]");
+            const local = JSON.parse(
+              localStorage.getItem("sapiens_custom_agents") || "[]"
+            );
             localStorage.setItem(
-              "omnivore_custom_agents",
+              "sapiens_custom_agents",
               JSON.stringify([data.agent, ...local.filter((a: any) => a.id !== data.agent.id)])
             );
           } catch (e) {}
@@ -391,45 +394,51 @@ export default function CreateAgentPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#0C0C0D] flex flex-col font-sans selection:bg-[#FA500F] selection:text-white">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#0C0C0D] flex flex-col font-sans selection:bg-[#71ce34] selection:text-white">
       {/* Top Header */}
       <header className="border-b border-[#E6E2DA] bg-[#FAF8F5]/90 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
             <Link
               href="/"
-              className="p-1.5 rounded hover:bg-[#EFECE6] text-neutral-600 hover:text-black transition flex items-center gap-1.5 text-xs font-semibold"
+              className="p-1.5 rounded-lg hover:bg-[#EFECE6] text-neutral-600 hover:text-black transition flex items-center gap-1.5 text-xs font-semibold shrink-0 interactive-btn"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Back to Studio</span>
+              <span className="hidden sm:inline">Back to Studio</span>
+              <span className="sm:hidden">Studio</span>
             </Link>
 
             <span className="text-neutral-300">/</span>
 
-            <div className="flex items-center gap-2">
-              <div className="p-1 rounded bg-[#FA500F] text-white">
-                <Bot className="w-3.5 h-3.5" />
-              </div>
-              <span className="text-xs font-mono uppercase tracking-wider text-neutral-500 font-bold">
+            <div className="flex items-center gap-2 truncate">
+              <Image
+                src="/logo.png"
+                alt="Sapiens Logo"
+                width={20}
+                height={20}
+                className="w-5 h-5 object-contain rounded shrink-0"
+              />
+              <span className="text-xs font-mono uppercase tracking-wider text-neutral-500 font-bold truncate">
                 Sapiens Studio
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <Link
               href="/"
-              className="px-3 py-1.5 rounded text-xs text-neutral-600 hover:text-black font-medium"
+              className="px-2.5 sm:px-3 py-1.5 rounded-lg text-xs text-neutral-600 hover:text-black font-medium transition interactive-btn"
             >
               Cancel
             </Link>
             <button
               onClick={handleCreate}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              className="px-3 sm:px-4 py-2 rounded-lg bg-[#71ce34] hover:bg-[#62b62b] text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer interactive-btn hover-lift"
             >
               <Check className="w-3.5 h-3.5" />
-              {isSubmitting ? "Deploying..." : "Save & Launch Agent"}
+              <span>{isSubmitting ? "Deploying..." : "Save & Launch"}</span>
+              <span className="hidden sm:inline">{!isSubmitting && " Agent"}</span>
             </button>
           </div>
         </div>
@@ -450,18 +459,18 @@ export default function CreateAgentPage() {
         {/* Templates Selector */}
         <div className="space-y-2">
           <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#FA500F]" />
+            <Sparkles className="w-3.5 h-3.5 text-[#71ce34]" />
             Quick Starter Templates (Software &amp; Hardware)
           </span>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <button
               type="button"
               onClick={() => handleApplyTemplate("gmail")}
-              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#FA500F] text-left transition shadow-2xs space-y-1 group cursor-pointer"
+              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#71ce34] text-left transition shadow-2xs space-y-1 group cursor-pointer hover-lift interactive-btn"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[#0C0C0D] flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-[#FA500F]" /> Gmail Sentinel
+                  <Mail className="w-3.5 h-3.5 text-[#71ce34]" /> Gmail Sentinel
                 </span>
                 <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-bold">
                   Software
@@ -475,7 +484,7 @@ export default function CreateAgentPage() {
             <button
               type="button"
               onClick={() => handleApplyTemplate("research")}
-              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#0066FF] text-left transition shadow-2xs space-y-1 group cursor-pointer"
+              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#0066FF] text-left transition shadow-2xs space-y-1 group cursor-pointer hover-lift interactive-btn"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[#0C0C0D] flex items-center gap-1.5">
@@ -493,7 +502,7 @@ export default function CreateAgentPage() {
             <button
               type="button"
               onClick={() => handleApplyTemplate("devops")}
-              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-purple-500 text-left transition shadow-2xs space-y-1 group cursor-pointer"
+              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-purple-500 text-left transition shadow-2xs space-y-1 group cursor-pointer hover-lift interactive-btn"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[#0C0C0D] flex items-center gap-1.5">
@@ -511,7 +520,7 @@ export default function CreateAgentPage() {
             <button
               type="button"
               onClick={() => handleApplyTemplate("coldchain")}
-              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#FA500F] text-left transition shadow-2xs space-y-1 group cursor-pointer"
+              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#71ce34] text-left transition shadow-2xs space-y-1 group cursor-pointer hover-lift interactive-btn"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[#0C0C0D] flex items-center gap-1.5">
@@ -532,7 +541,7 @@ export default function CreateAgentPage() {
         <div className="space-y-6">
           {/* Section 1: Identity & Scope */}
           <div className="p-6 rounded-xl bg-white border border-[#E6E2DA] shadow-xs space-y-5">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-[#FA500F] font-mono flex items-center gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-[#71ce34] font-mono flex items-center gap-2">
               <Bot className="w-4 h-4" /> 1. Agent Identity &amp; Scope
             </h2>
 
@@ -545,7 +554,7 @@ export default function CreateAgentPage() {
                   placeholder="e.g. Gmail Priority Sentinel, Research Analyst, DevOps Watchdog"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs text-[#0C0C0D] focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs text-[#0C0C0D] focus:outline-none focus:border-[#71ce34] focus:bg-white"
                 />
               </div>
 
@@ -556,7 +565,7 @@ export default function CreateAgentPage() {
                   placeholder="e.g. Read incoming Gmail messages and extract high-priority emails"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs text-[#0C0C0D] focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs text-[#0C0C0D] focus:outline-none focus:border-[#71ce34] focus:bg-white"
                 />
               </div>
             </div>
@@ -570,7 +579,7 @@ export default function CreateAgentPage() {
                     id="hardwareToggle"
                     checked={hasHardware}
                     onChange={(e) => setHasHardware(e.target.checked)}
-                    className="accent-[#FA500F] w-4 h-4 cursor-pointer"
+                    className="accent-[#71ce34] w-4 h-4 cursor-pointer"
                   />
                   <label htmlFor="hardwareToggle" className="text-xs font-bold text-neutral-800 cursor-pointer">
                     Connect to Physical Hardware / Microcontroller (Optional)
@@ -594,7 +603,7 @@ export default function CreateAgentPage() {
                     placeholder="e.g. ESP32-S3-COLD-01"
                     value={hardwareDeviceId}
                     onChange={(e) => setHardwareDeviceId(e.target.value)}
-                    className="w-full bg-white border border-[#E0DCD4] rounded p-2 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
+                    className="w-full bg-white border border-[#E0DCD4] rounded p-2 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#71ce34]"
                   />
                 </div>
               ) : (
@@ -617,7 +626,7 @@ export default function CreateAgentPage() {
                 <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
-                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
+                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#71ce34]"
                 >
                   <option value="open-mistral-nemo">sapiens-frontier-nemo (Sapiens Frontier • Free Tier • Recommended)</option>
                   <option value="codestral-latest">sapiens-code-latest (Sapiens Code &amp; Logic)</option>
@@ -638,7 +647,7 @@ export default function CreateAgentPage() {
                   step="0.05"
                   value={temperature}
                   onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                  className="w-full accent-[#FA500F] cursor-pointer mt-2"
+                  className="w-full accent-[#71ce34] cursor-pointer mt-2"
                 />
               </div>
             </div>
@@ -649,7 +658,7 @@ export default function CreateAgentPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900 font-mono flex items-center gap-2">
-                  <Terminal className="w-4 h-4 text-[#FA500F]" /> 3. System Instructions &amp; Safety Directives
+                  <Terminal className="w-4 h-4 text-[#71ce34]" /> 3. System Instructions &amp; Safety Directives
                 </h2>
                 <p className="text-[11px] text-neutral-500">
                   Write custom instructions or generate them dynamically based on your mission description.
@@ -660,7 +669,7 @@ export default function CreateAgentPage() {
                 type="button"
                 onClick={handleAutoGeneratePrompt}
                 disabled={isGeneratingPrompt}
-                className="px-3.5 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 border border-[#FA500F]/30 text-[#FA500F] font-bold text-xs flex items-center gap-1.5 transition self-start sm:self-auto cursor-pointer disabled:opacity-50"
+                className="px-3.5 py-1.5 rounded-lg bg-[#71ce34]/10 hover:bg-[#71ce34]/20 border border-[#71ce34]/30 text-[#71ce34] font-bold text-xs flex items-center gap-1.5 transition self-start sm:self-auto cursor-pointer disabled:opacity-50"
               >
                 {isGeneratingPrompt ? (
                   <>
@@ -684,7 +693,7 @@ export default function CreateAgentPage() {
 Tip: Click 'Generate from Mission' above to automatically draft tailored instructions from your Agent Name and Description!`}
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-3.5 text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#FA500F] focus:bg-white leading-relaxed resize-y"
+                className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-3.5 text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#71ce34] focus:bg-white leading-relaxed resize-y"
               />
             </div>
           </div>
@@ -738,7 +747,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                 <button
                   type="button"
                   onClick={() => setShowCustomSkillModal(true)}
-                  className="px-3.5 py-1.5 rounded-lg bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg bg-[#71ce34] hover:bg-[#62b62b] text-white font-bold text-xs flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Create Custom Skill</span>
@@ -757,7 +766,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
             {/* Filter & Search Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               {/* Category Pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0 text-xs">
                 {[
                   { id: "all", label: "All Skills" },
                   { id: "productivity", label: "Productivity (Gmail)" },
@@ -771,7 +780,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                     key={cat.id}
                     type="button"
                     onClick={() => setSkillCategoryFilter(cat.id)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-medium whitespace-nowrap transition cursor-pointer ${
+                    className={`px-2.5 py-1 rounded text-[11px] font-medium whitespace-nowrap transition cursor-pointer interactive-btn ${
                       skillCategoryFilter === cat.id
                         ? "bg-[#0C0C0D] text-white font-bold"
                         : "bg-[#FAF8F5] hover:bg-[#EFECE6] text-neutral-700 border border-[#E6E2DA]"
@@ -790,7 +799,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                   placeholder="Search skills..."
                   value={skillSearchQuery}
                   onChange={(e) => setSkillSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#E0DCD4] text-xs text-neutral-800 focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#E0DCD4] text-xs text-neutral-800 focus:outline-none focus:border-[#71ce34] focus:bg-white"
                 />
               </div>
             </div>
@@ -809,9 +818,9 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                         setSelectedTools([...selectedTools, skill.id]);
                       }
                     }}
-                    className={`p-3.5 rounded-xl border cursor-pointer flex flex-col justify-between transition ${
+                    className={`p-3.5 rounded-xl border cursor-pointer flex flex-col justify-between transition-all duration-200 hover-lift ${
                       isSelected
-                        ? "bg-white border-[#FA500F] shadow-2xs ring-1 ring-[#FA500F]/20"
+                        ? "bg-white border-[#71ce34] shadow-xs ring-1 ring-[#71ce34]/30"
                         : "bg-[#FAF8F5] border-[#EAE6DE] hover:border-neutral-400 opacity-80"
                     }`}
                   >
@@ -857,7 +866,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {}}
-                          className="accent-[#FA500F] w-4 h-4 pointer-events-none shrink-0"
+                          className="accent-[#71ce34] w-4 h-4 pointer-events-none shrink-0"
                         />
                       </div>
 
@@ -889,7 +898,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                 <button
                   type="button"
                   onClick={() => setShowCustomSkillModal(true)}
-                  className="px-3 py-1.5 bg-[#FA500F] text-white text-xs font-bold rounded shadow-xs"
+                  className="px-3 py-1.5 bg-[#71ce34] text-white text-xs font-bold rounded shadow-xs"
                 >
                   Create Custom Skill
                 </button>
@@ -915,7 +924,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                   onChange={(e) =>
                     setSelectedChannels({ ...selectedChannels, whatsapp: e.target.checked })
                   }
-                  className="accent-[#FA500F] w-4 h-4"
+                  className="accent-[#71ce34] w-4 h-4"
                 />
               </label>
 
@@ -930,7 +939,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                   onChange={(e) =>
                     setSelectedChannels({ ...selectedChannels, discord: e.target.checked })
                   }
-                  className="accent-[#FA500F] w-4 h-4"
+                  className="accent-[#71ce34] w-4 h-4"
                 />
               </label>
 
@@ -945,7 +954,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                   onChange={(e) =>
                     setSelectedChannels({ ...selectedChannels, telegram: e.target.checked })
                   }
-                  className="accent-[#FA500F] w-4 h-4"
+                  className="accent-[#71ce34] w-4 h-4"
                 />
               </label>
             </div>
@@ -963,7 +972,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
           <button
             onClick={handleCreate}
             disabled={isSubmitting}
-            className="px-6 py-2.5 rounded-lg bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs shadow-md transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+            className="px-6 py-2.5 rounded-lg bg-[#71ce34] hover:bg-[#62b62b] text-white font-bold text-xs shadow-md transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             <Check className="w-4 h-4" />
             {isSubmitting ? "Deploying..." : "Save & Launch Agent in Studio"}
@@ -975,12 +984,12 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
       {/* MODAL: CREATE CUSTOM SKILL (WITH SAPIENS AI AUTODRAFT)         */}
       {/* ───────────────────────────────────────────────────────────── */}
       {showCustomSkillModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-[#E6E2DA] max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-2xl border border-[#E6E2DA] max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-fade-in-scale">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#E6E2DA] pb-3">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded-lg bg-[#FA500F] text-white">
+                <div className="p-1.5 rounded-lg bg-[#71ce34] text-white">
                   <Code2 className="w-4 h-4" />
                 </div>
                 <div>
@@ -1000,9 +1009,9 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
             </div>
 
             {/* AI Auto-Draft Prompt Banner */}
-            <div className="p-3 rounded-xl bg-[#FFF7F2] border border-[#FA500F]/30 space-y-2">
+            <div className="p-3 rounded-xl bg-[#F2FAEE] border border-[#71ce34]/30 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#FA500F] flex items-center gap-1.5">
+                <span className="text-xs font-bold text-[#71ce34] flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" /> AI Skill Architect (Sapiens Intelligence)
                 </span>
                 <span className="text-[10px] font-mono text-neutral-500">Auto-Generates Valid Schema</span>
@@ -1013,13 +1022,13 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                   placeholder="e.g. Read Gmail inbox attachments and extract invoices..."
                   value={customSkillPrompt}
                   onChange={(e) => setCustomSkillPrompt(e.target.value)}
-                  className="flex-1 bg-white border border-[#E0DCD4] rounded-lg p-2 text-xs text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
+                  className="flex-1 bg-white border border-[#E0DCD4] rounded-lg p-2 text-xs text-[#0C0C0D] focus:outline-none focus:border-[#71ce34]"
                 />
                 <button
                   type="button"
                   onClick={handleAiDraftSkill}
                   disabled={isGeneratingSkill}
-                  className="px-3 py-1.5 rounded-lg bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs shrink-0 flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg bg-[#71ce34] hover:bg-[#62b62b] text-white font-bold text-xs shrink-0 flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 >
                   {isGeneratingSkill ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -1049,7 +1058,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                         );
                       }
                     }}
-                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs focus:outline-none focus:border-[#71ce34] focus:bg-white"
                   />
                 </div>
 
@@ -1061,7 +1070,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                     placeholder="e.g. filter_urgent_emails()"
                     value={newSkillFunction}
                     onChange={(e) => setNewSkillFunction(e.target.value)}
-                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs font-mono focus:outline-none focus:border-[#71ce34] focus:bg-white"
                   />
                 </div>
               </div>
@@ -1072,7 +1081,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                   <select
                     value={newSkillCategory}
                     onChange={(e) => setNewSkillCategory(e.target.value as any)}
-                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs focus:outline-none focus:border-[#FA500F]"
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs focus:outline-none focus:border-[#71ce34]"
                   >
                     <option value="productivity">Productivity (Gmail, Office)</option>
                     <option value="search">Search &amp; Research</option>
@@ -1089,7 +1098,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                   <select
                     value={newSkillRisk}
                     onChange={(e) => setNewSkillRisk(e.target.value as any)}
-                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs font-bold focus:outline-none focus:border-[#FA500F]"
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs font-bold focus:outline-none focus:border-[#71ce34]"
                   >
                     <option value="LOW">LOW (Read-only, auto-approved)</option>
                     <option value="MEDIUM">MEDIUM (Notifications, external webhooks)</option>
@@ -1106,7 +1115,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                   placeholder="Explain exactly what this skill executes, what APIs it calls, and when the agent should trigger it..."
                   value={newSkillDesc}
                   onChange={(e) => setNewSkillDesc(e.target.value)}
-                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs focus:outline-none focus:border-[#FA500F] focus:bg-white resize-none"
+                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2 text-xs focus:outline-none focus:border-[#71ce34] focus:bg-white resize-none"
                 />
               </div>
 
@@ -1122,7 +1131,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                         { name: "", type: "string", required: true, description: "" },
                       ])
                     }
-                    className="text-[10px] font-bold text-[#FA500F] hover:underline cursor-pointer"
+                    className="text-[10px] font-bold text-[#71ce34] hover:underline cursor-pointer"
                   >
                     + Add Parameter
                   </button>
@@ -1192,7 +1201,7 @@ Tip: Click 'Generate from Mission' above to automatically draft tailored instruc
                 type="button"
                 onClick={handleSaveCustomSkill}
                 disabled={isSavingSkill}
-                className="px-5 py-2 rounded-lg bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 rounded-lg bg-[#71ce34] hover:bg-[#62b62b] text-white font-bold text-xs transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
               >
                 <Check className="w-3.5 h-3.5" />
                 {isSavingSkill ? "Registering Tool..." : "Validate & Register Skill"}

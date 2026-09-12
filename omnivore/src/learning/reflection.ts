@@ -257,7 +257,7 @@ async function generatePolicy(
 export async function runReflectionCycle(
   param?: number | string
 ): Promise<{ success: boolean; message: string }> {
-  const agentId = typeof param === "string" ? param : "omnivore-cold-chain";
+  const agentId = typeof param === "string" ? param : "sapiens-cold-chain";
   await runReflection(agentId);
   return {
     success: true,

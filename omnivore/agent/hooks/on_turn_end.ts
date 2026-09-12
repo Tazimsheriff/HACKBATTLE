@@ -26,7 +26,7 @@ export async function onTurnEnd({
   actionTaken,
   outcome,
   wasSuccessful,
-  agentId = "omnivore-cold-chain",
+  agentId = "sapiens-cold-chain",
   category = "system",
   metadata = {},
   latencyMs = 0,

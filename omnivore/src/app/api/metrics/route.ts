@@ -16,7 +16,7 @@ export async function GET() {
 
     try {
       // Calculate dynamic trust score for cold-chain agent
-      const dynamicTrust = await calculateTrustScore("omnivore-cold-chain").catch(() => null);
+      const dynamicTrust = await calculateTrustScore("sapiens-cold-chain").catch(() => null);
       if (dynamicTrust && dynamicTrust.overall > 0) {
         trustScore = dynamicTrust.overall * 100;
       }

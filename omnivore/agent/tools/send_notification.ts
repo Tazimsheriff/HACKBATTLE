@@ -122,11 +122,11 @@ async function deliverNotification(opts: {
   // Telegram and WhatsApp are triggered here if configured
 
   const notificationText =
-    `🚨 *OMNIVORE ALERT* [${opts.urgency.toUpperCase()}]\n` +
+    `🚨 *SAPIENS ALERT* [${opts.urgency.toUpperCase()}]\n` +
     `To: ${opts.recipient}\n` +
     `Subject: ${opts.subject}\n\n` +
     `${opts.message}\n\n` +
-    `_Sent by OMNIVORE AGENT_`;
+    `_Sent by SAPIENS AGENT_`;
 
   // TODO: Telegram delivery (Milestone 7)
   // await telegramBot.sendMessage(MANAGER_CHAT_ID, notificationText, { parse_mode: 'Markdown' });

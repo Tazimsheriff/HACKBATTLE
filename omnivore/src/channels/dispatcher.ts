@@ -40,7 +40,7 @@ export async function sendDiscordAlert(
         : msg.severity === "approval"
         ? 0xf59e0b // Amber
         : msg.severity === "warning"
-        ? 0xfa500f // Sapiens Orange
+        ? 0x71ce34 // Sapiens Green
         : 0x10b981; // Green
 
     const payload = {

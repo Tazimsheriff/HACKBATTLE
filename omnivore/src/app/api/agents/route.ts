@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 export const initialAgents = [
   {
-    id: "omnivore-cold-chain",
+    id: "sapiens-cold-chain",
     name: "Cold-Chain Guardian",
     description: "Autonomous medical storage monitor with continuous self-learning defrost adaptation and hardware guardrails.",
     goal: "Safeguard vaccine container COLD-01 at -18°C and suppress false alarms.",

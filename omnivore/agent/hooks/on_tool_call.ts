@@ -16,7 +16,7 @@ export async function onToolCall({
   runId,
   toolName,
   parameters,
-  agentId = "omnivore-cold-chain",
+  agentId = "sapiens-cold-chain",
 }: ToolCallContext): Promise<{
   allowed: boolean;
   reason?: string;

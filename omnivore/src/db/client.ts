@@ -4,7 +4,7 @@ import * as schema from './schema';
 
 // Connection string fallback for build/demo
 const connectionString =
-  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/omnivore";
+  process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/sapiens";
 
 // Disable prefetch as it is not supported for "Transaction" pool mode
 const client = postgres(connectionString, {

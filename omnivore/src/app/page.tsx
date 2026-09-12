@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import {
   Shield,
   Activity,
@@ -111,7 +112,7 @@ export default function SapiensAgentStudio() {
   // Agents list
   const [agentsList, setAgentsList] = useState<AgentItem[]>([
     {
-      id: "omnivore-cold-chain",
+      id: "sapiens-cold-chain",
       name: "Cold-Chain Guardian",
       description: "Autonomous medical storage monitor with continuous self-learning defrost adaptation and hardware guardrails.",
       goal: "Safeguard vaccine container COLD-01 at -18°C and suppress false alarms.",
@@ -134,7 +135,7 @@ When reading sensor data:
       tools: ["get_sensor_data", "send_notification"],
     },
   ]);
-  const [selectedAgentId, setSelectedAgentId] = useState("omnivore-cold-chain");
+  const [selectedAgentId, setSelectedAgentId] = useState("sapiens-cold-chain");
 
 
   // Channels Form
@@ -169,7 +170,7 @@ When reading sensor data:
       setSelectedModel(ag.model);
       setSystemPrompt(ag.instructions || "");
       if (typeof window !== "undefined") {
-        localStorage.setItem("omnivore_active_agent_id", ag.id);
+        localStorage.setItem("sapiens_active_agent_id", ag.id);
       }
     }
   }, [selectedAgentId, agentsList]);
@@ -178,7 +179,7 @@ When reading sensor data:
   const handleSelectAgent = (agentId: string) => {
     setSelectedAgentId(agentId);
     if (typeof window !== "undefined") {
-      localStorage.setItem("omnivore_active_agent_id", agentId);
+      localStorage.setItem("sapiens_active_agent_id", agentId);
       const url = new URL(window.location.href);
       url.searchParams.set("agentId", agentId);
       window.history.replaceState({}, "", url.toString());
@@ -292,7 +293,9 @@ When reading sensor data:
           let list = d.agents;
           if (typeof window !== "undefined") {
             try {
-              const local = JSON.parse(localStorage.getItem("omnivore_custom_agents") || "[]");
+              const local = JSON.parse(
+                localStorage.getItem("sapiens_custom_agents") || "[]"
+              );
               if (local.length) {
                 const apiIds = new Set(d.agents.map((a: any) => a.id));
                 const extra = local.filter((a: any) => !apiIds.has(a.id));
@@ -307,7 +310,7 @@ When reading sensor data:
           if (typeof window !== "undefined") {
             const urlParams = new URLSearchParams(window.location.search);
             const queryId = urlParams.get("agentId");
-            const storedId = localStorage.getItem("omnivore_active_agent_id");
+            const storedId = localStorage.getItem("sapiens_active_agent_id");
             if (queryId && list.some((a: any) => a.id === queryId)) {
               targetId = queryId;
             } else if (storedId && list.some((a: any) => a.id === storedId)) {
@@ -336,7 +339,7 @@ When reading sensor data:
     if (typeof window !== "undefined") {
       const urlParams = new URLSearchParams(window.location.search);
       const queryId = urlParams.get("agentId");
-      const storedId = localStorage.getItem("omnivore_active_agent_id");
+      const storedId = localStorage.getItem("sapiens_active_agent_id");
       if (queryId) setSelectedAgentId(queryId);
       else if (storedId) setSelectedAgentId(storedId);
     }
@@ -482,7 +485,7 @@ When reading sensor data:
   };
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5] text-[#0C0C0D] flex flex-col selection:bg-[#FA500F] selection:text-white font-sans">
+    <div className="min-h-screen bg-[#FAF8F5] text-[#0C0C0D] flex flex-col selection:bg-[#71ce34] selection:text-white font-sans">
       {/* ───────────────────────────────────────────────────────────── */}
       {/* TOP NOTIFICATION TOAST                                       */}
       {/* ───────────────────────────────────────────────────────────── */}
@@ -496,37 +499,34 @@ When reading sensor data:
       {/* SAPIENS TOP NAVIGATION BAR                                    */}
       {/* ───────────────────────────────────────────────────────────── */}
       <header className="border-b border-[#E6E2DA] bg-[#FAF8F5]/90 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-2">
           {/* Logo & Agent Switcher */}
-          <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 min-w-0">
             <div
-              className="flex items-center gap-2 cursor-pointer"
+              className="flex items-center gap-2 cursor-pointer shrink-0 hover:opacity-90 transition-opacity"
               onClick={() => setViewMode("showcase")}
             >
-              {/* Sapiens Iconic Pixel Glyph */}
-              <div className="grid grid-cols-3 gap-0.5 w-6 h-6 p-0.5 bg-[#FA500F] rounded-xs shadow-md shadow-[#FA500F]/20">
-                <div className="bg-white"></div>
-                <div className="bg-white"></div>
-                <div className="bg-white"></div>
-                <div className="bg-white"></div>
-                <div className="bg-white"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-white"></div>
-                <div className="bg-white"></div>
-              </div>
-              <span className="font-extrabold text-base tracking-tight text-[#0C0C0D] flex items-center gap-1">
-                SAPIENS <span className="text-[#FA500F]">STUDIO</span>
+              {/* Sapiens Official Logo */}
+              <Image
+                src="/logo.png"
+                alt="Sapiens Logo"
+                width={28}
+                height={28}
+                className="w-7 h-7 object-contain rounded transition-transform duration-300 hover:scale-105"
+                priority
+              />
+              <span className="font-extrabold text-sm sm:text-base tracking-tight text-[#0C0C0D] flex items-center gap-1">
+                SAPIENS <span className="text-[#71ce34]">STUDIO</span>
               </span>
             </div>
 
             {/* Agent Switcher Dropdown */}
-            <div className="flex items-center gap-1.5 bg-[#EFECE6] px-2.5 py-1 rounded border border-[#E0DCD4] text-xs">
-              <span className="text-neutral-500 font-mono text-[10px]">AGENT:</span>
+            <div className="flex items-center gap-1 bg-[#EFECE6] px-2 sm:px-2.5 py-1 rounded border border-[#E0DCD4] text-xs max-w-[140px] xs:max-w-[170px] sm:max-w-[240px] md:max-w-none">
+              <span className="text-neutral-500 font-mono text-[9px] sm:text-[10px] hidden xs:inline">AGENT:</span>
               <select
                 value={selectedAgentId}
                 onChange={(e) => handleSelectAgent(e.target.value)}
-                className="bg-transparent text-xs font-bold text-[#0C0C0D] focus:outline-none cursor-pointer"
+                className="bg-transparent text-xs font-bold text-[#0C0C0D] focus:outline-none cursor-pointer truncate max-w-[90px] xs:max-w-[120px] sm:max-w-[180px]"
               >
                 {agentsList.map((ag) => (
                   <option key={ag.id} value={ag.id}>
@@ -538,46 +538,59 @@ When reading sensor data:
                 href="/agents/create"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="ml-1.5 p-1 rounded bg-[#FA500F] hover:bg-[#ff6422] text-white transition flex items-center justify-center"
+                className="ml-1 p-1 rounded bg-[#71ce34] hover:bg-[#62b62b] text-white transition flex items-center justify-center interactive-btn shrink-0"
                 title="Create New Agent (Opens Studio in New Window)"
               >
                 <Plus className="w-3 h-3" />
               </a>
             </div>
 
-            {/* Channels Button (WhatsApp, Discord, Telegram) */}
+            {/* Channels Button (WhatsApp, Discord, Telegram) - Desktop */}
             <button
               onClick={() => setShowChannelsModal(true)}
-              className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded bg-white hover:bg-neutral-50 text-xs font-bold text-[#0C0C0D] border border-[#E0DCD4] shadow-2xs transition"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded bg-white hover:bg-neutral-50 text-xs font-bold text-[#0C0C0D] border border-[#E0DCD4] shadow-2xs transition interactive-btn hover-lift shrink-0"
             >
               <Share2 className="w-3.5 h-3.5 text-[#0066FF]" />
               <span>Connect Channels</span>
               <span className="flex items-center gap-1 ml-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                <span className="text-[10px] text-neutral-500 font-mono">3 Available</span>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span className="text-[10px] text-neutral-500 font-mono">3 Active</span>
               </span>
             </button>
           </div>
 
           {/* Right Actions & Status */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* Mobile Channels Button */}
+            <button
+              onClick={() => setShowChannelsModal(true)}
+              className="flex lg:hidden p-1.5 rounded bg-white hover:bg-neutral-50 text-neutral-700 border border-[#E0DCD4] text-xs font-bold interactive-btn transition"
+              title="Connect Channels"
+            >
+              <Share2 className="w-3.5 h-3.5 text-[#0066FF]" />
+            </button>
+
             {/* View Mode Switcher Pill */}
             <div className="flex items-center rounded-md bg-[#EFECE6] p-0.5 border border-[#E0DCD4] text-xs">
               <button
                 onClick={() => setViewMode("builder")}
-                className={`px-3 py-1 rounded font-medium transition ${
+                className={`px-2 sm:px-3 py-1 rounded font-medium transition-all duration-200 interactive-btn text-[11px] sm:text-xs ${
                   viewMode === "builder"
-                    ? "bg-[#FA500F] text-white shadow-sm font-bold"
+                    ? "bg-[#71ce34] text-white shadow-sm font-bold"
                     : "text-neutral-600 hover:text-[#0C0C0D]"
                 }`}
               >
-                Studio Builder
+                <span className="hidden sm:inline">Studio Builder</span>
+                <span className="inline sm:hidden">Studio</span>
               </button>
               <button
                 onClick={() => setViewMode("showcase")}
-                className={`px-3 py-1 rounded font-medium transition ${
+                className={`px-2 sm:px-3 py-1 rounded font-medium transition-all duration-200 interactive-btn text-[11px] sm:text-xs ${
                   viewMode === "showcase"
-                    ? "bg-[#FA500F] text-white shadow-sm font-bold"
+                    ? "bg-[#71ce34] text-white shadow-sm font-bold"
                     : "text-neutral-600 hover:text-[#0C0C0D]"
                 }`}
               >
@@ -591,11 +604,11 @@ When reading sensor data:
                 await fetch("/api/demo/seed", { method: "POST" });
                 fetchData();
               }}
-              className="px-2.5 py-1 text-xs text-neutral-700 hover:text-black bg-white border border-[#E0DCD4] rounded shadow-2xs hover:bg-neutral-50 flex items-center gap-1.5 transition"
+              className="p-1.5 sm:px-2.5 sm:py-1 text-xs text-neutral-700 hover:text-black bg-white border border-[#E0DCD4] rounded shadow-2xs hover:bg-neutral-50 flex items-center gap-1.5 transition interactive-btn"
               title="Reset initial telemetry, defrost false alarms, and policies"
             >
-              <RefreshCw className="w-3 h-3" />
-              Reset Demo
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Reset</span>
             </button>
           </div>
         </div>
@@ -607,12 +620,12 @@ When reading sensor data:
       {/* MODAL 2: CONNECT CHANNELS (WHATSAPP, DISCORD, TELEGRAM)       */}
       {/* ───────────────────────────────────────────────────────────── */}
       {showChannelsModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-[#E6E2DA] max-w-xl w-full p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-fade-in">
+          <div className="bg-white rounded-xl border border-[#E6E2DA] max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-5 animate-fade-in-scale max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-[#E6E2DA] pb-3">
               <div>
                 <h3 className="text-base font-bold text-[#0C0C0D] flex items-center gap-2">
-                  <Share2 className="w-4 h-4 text-[#FA500F]" />
+                  <Share2 className="w-4 h-4 text-[#71ce34]" />
                   Multi-Channel Messaging Integrations
                 </h3>
                 <p className="text-xs text-neutral-500">
@@ -678,10 +691,10 @@ When reading sensor data:
                     type="text"
                     value={whatsAppRecipient}
                     onChange={(e) => setWhatsAppRecipient(e.target.value)}
-                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#71ce34] focus:bg-white"
                   />
                   <p className="text-[11px] text-neutral-500 mt-1">
-                    When high-risk actions are quarantined, operators can reply <code className="font-bold text-[#FA500F]">APPROVE</code> directly via WhatsApp.
+                    When high-risk actions are quarantined, operators can reply <code className="font-bold text-[#71ce34]">APPROVE</code> directly via WhatsApp.
                   </p>
                 </div>
 
@@ -719,7 +732,7 @@ When reading sensor data:
                     placeholder="https://discord.com/api/webhooks/..."
                     value={discordWebhook}
                     onChange={(e) => setDiscordWebhook(e.target.value)}
-                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#71ce34] focus:bg-white"
                   />
                   <p className="text-[11px] text-neutral-500 mt-1">
                     Paste your Discord channel webhook to stream real-time temperature graph cards &amp; breaches.
@@ -761,7 +774,7 @@ When reading sensor data:
                       placeholder="123456:ABC-DEF..."
                       value={telegramToken}
                       onChange={(e) => setTelegramToken(e.target.value)}
-                      className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                      className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#71ce34] focus:bg-white"
                     />
                   </div>
                   <div>
@@ -771,7 +784,7 @@ When reading sensor data:
                       placeholder="@channel or -100123..."
                       value={telegramChatId}
                       onChange={(e) => setTelegramChatId(e.target.value)}
-                      className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white"
+                      className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#71ce34] focus:bg-white"
                     />
                   </div>
                 </div>
@@ -795,7 +808,7 @@ When reading sensor data:
             <div className="flex items-center justify-end pt-3 border-t border-[#E6E2DA]">
               <button
                 onClick={() => setShowChannelsModal(false)}
-                className="px-4 py-2 bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs rounded transition shadow-xs"
+                className="px-4 py-2 bg-[#71ce34] hover:bg-[#62b62b] text-white font-bold text-xs rounded transition shadow-xs"
               >
                 Done
               </button>
@@ -812,11 +825,11 @@ When reading sensor data:
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* LEFT PANEL: AGENT CONFIGURATION (WHITE MODE)                */}
           {/* ═══════════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-5 p-4 sm:p-6 space-y-6 overflow-y-auto max-h-[calc(100vh-56px)] bg-[#FAF8F5]">
+          <div className="lg:col-span-5 p-3.5 sm:p-5 lg:p-6 space-y-5 lg:space-y-6 overflow-y-auto lg:max-h-[calc(100vh-56px)] bg-[#FAF8F5] animate-fade-in">
             {/* Header: Agent Identity */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-[#FA500F] font-bold flex items-center gap-1.5">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#71ce34] font-bold flex items-center gap-1.5">
                   <Bot className="w-3.5 h-3.5" /> Agent Blueprint
                 </span>
                 <div className="flex items-center gap-2">
@@ -837,7 +850,7 @@ When reading sensor data:
                   type="text"
                   value={agentName}
                   onChange={(e) => setAgentName(e.target.value)}
-                  className="w-full bg-transparent text-xl sm:text-2xl font-black tracking-tight text-[#0C0C0D] border-b border-[#E6E2DA] focus:border-[#FA500F] focus:outline-none pb-1"
+                  className="w-full bg-transparent text-xl sm:text-2xl font-black tracking-tight text-[#0C0C0D] border-b border-[#E6E2DA] focus:border-[#71ce34] focus:outline-none pb-1"
                 />
                 <input
                   type="text"
@@ -852,12 +865,12 @@ When reading sensor data:
             <div className="sapiens-card p-3.5 space-y-2">
               <label className="text-xs font-bold text-neutral-800 flex items-center justify-between">
                 <span>Base Intelligence Model</span>
-                <span className="text-[10px] font-mono text-[#FA500F] font-semibold">Low Latency Tool Calling</span>
+                <span className="text-[10px] font-mono text-[#71ce34] font-semibold">Low Latency Tool Calling</span>
               </label>
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="w-full bg-[#F7F5F0] border border-[#E6E2DA] text-xs text-[#0C0C0D] rounded p-2 focus:outline-none focus:border-[#FA500F] font-mono"
+                className="w-full bg-[#F7F5F0] border border-[#E6E2DA] text-xs text-[#0C0C0D] rounded p-2 focus:outline-none focus:border-[#71ce34] font-mono"
               >
                 <option value="sapiens-reasoning-frontier">sapiens-frontier (Deep Reasoning Engine)</option>
                 <option value="sapiens-edge-nemo">sapiens-nemo-12b (Edge Optimized)</option>
@@ -869,7 +882,7 @@ When reading sensor data:
             <div className="sapiens-card p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
-                  <Terminal className="w-3.5 h-3.5 text-[#FA500F]" />
+                  <Terminal className="w-3.5 h-3.5 text-[#71ce34]" />
                   Instructions (System Prompt)
                 </label>
                 <span className="text-[10px] font-mono text-neutral-500">
@@ -880,12 +893,12 @@ When reading sensor data:
                 value={systemPrompt}
                 onChange={(e) => setSystemPrompt(e.target.value)}
                 rows={5}
-                className="w-full bg-[#F7F5F0] border border-[#E6E2DA] text-xs text-neutral-800 font-mono rounded p-2.5 focus:outline-none focus:border-[#FA500F] leading-relaxed resize-none focus:bg-white"
+                className="w-full bg-[#F7F5F0] border border-[#E6E2DA] text-xs text-neutral-800 font-mono rounded p-2.5 focus:outline-none focus:border-[#71ce34] leading-relaxed resize-none focus:bg-white"
               />
 
               {/* Injected Policies Pill */}
-              <div className="p-2.5 rounded bg-[#FFF7F2] border border-[#FA500F]/30 space-y-1">
-                <span className="text-[10px] font-bold text-[#FA500F] uppercase tracking-wider block">
+              <div className="p-2.5 rounded bg-[#F2FAEE] border border-[#71ce34]/30 space-y-1">
+                <span className="text-[10px] font-bold text-[#71ce34] uppercase tracking-wider block">
                   ⚡ Dynamically Injected Learned Policy:
                 </span>
                 {policies.slice(0, 1).map((p) => (
@@ -900,7 +913,7 @@ When reading sensor data:
             <div className="sapiens-card p-3.5 space-y-3">
               <label className="text-xs font-bold text-neutral-800 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <Wrench className="w-3.5 h-3.5 text-[#FA500F]" />
+                  <Wrench className="w-3.5 h-3.5 text-[#71ce34]" />
                   Tool Capabilities &amp; Risk Registry
                 </span>
                 <span className="text-[10px] text-neutral-500">Eve SDK Tools</span>
@@ -970,7 +983,7 @@ When reading sensor data:
                       onChange={(e) =>
                         setEnabledTools({ ...enabledTools, [tool.key]: e.target.checked })
                       }
-                      className="accent-[#FA500F] w-4 h-4 cursor-pointer"
+                      className="accent-[#71ce34] w-4 h-4 cursor-pointer"
                     />
                   </div>
                 ))}
@@ -978,16 +991,16 @@ When reading sensor data:
             </div>
 
             {/* Continuous Learning & Policy Promotion */}
-            <div className="sapiens-card p-3.5 space-y-3 border-[#FA500F]/30 bg-[#FFF9F5]">
+            <div className="sapiens-card p-3.5 space-y-3 border-[#71ce34]/30 bg-[#F4FBF0]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-neutral-900 flex items-center gap-1.5">
-                  <Brain className="w-3.5 h-3.5 text-[#FA500F]" />
+                  <Brain className="w-3.5 h-3.5 text-[#71ce34]" />
                   Self-Learning Loop &amp; Candidate Review
                 </span>
                 <button
                   onClick={handleReflect}
                   disabled={isReflecting}
-                  className="text-[10px] font-bold px-2.5 py-1 rounded bg-[#FA500F] hover:bg-[#ff6422] text-white transition flex items-center gap-1 shadow-xs"
+                  className="text-[10px] font-bold px-2.5 py-1 rounded bg-[#71ce34] hover:bg-[#62b62b] text-white transition flex items-center gap-1 shadow-xs"
                 >
                   <RefreshCw className={`w-3 h-3 ${isReflecting ? "animate-spin" : ""}`} />
                   Trigger Reflection
@@ -1031,10 +1044,10 @@ When reading sensor data:
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* RIGHT PANEL: TEST ARENA & TELEMETRY (WHITE MODE)            */}
           {/* ═══════════════════════════════════════════════════════════ */}
-          <div className="lg:col-span-7 flex flex-col h-[calc(100vh-56px)] bg-[#FFFFFF]">
+          <div className="lg:col-span-7 flex flex-col min-h-[500px] lg:h-[calc(100vh-56px)] bg-[#FFFFFF] animate-fade-in">
             {/* Arena Sub-Navigation Tabs */}
-            <div className="border-b border-[#E6E2DA] px-4 flex items-center justify-between bg-[#F7F5F0]">
-              <div className="flex space-x-1">
+            <div className="border-b border-[#E6E2DA] px-2 sm:px-4 flex items-center justify-between bg-[#F7F5F0] overflow-x-auto no-scrollbar">
+              <div className="flex space-x-1 shrink-0 overflow-x-auto no-scrollbar py-0.5">
                 {[
                   { id: "chat", label: "Studio Chat Arena", icon: Bot },
                   { id: "oled", label: "ESP32 OLED Mirror", icon: Cpu },
@@ -1052,16 +1065,16 @@ When reading sensor data:
                     <button
                       key={tab.id}
                       onClick={() => setArenaTab(tab.id as any)}
-                      className={`flex items-center gap-1.5 py-3 px-3 text-xs font-medium border-b-2 transition ${
+                      className={`flex items-center gap-1.5 py-2.5 sm:py-3 px-2.5 sm:px-3 text-xs font-medium border-b-2 transition-all duration-200 interactive-btn shrink-0 ${
                         active
-                          ? "border-[#FA500F] text-[#FA500F] font-bold bg-white"
-                          : "border-transparent text-neutral-600 hover:text-black"
+                          ? "border-[#71ce34] text-[#71ce34] font-bold bg-white"
+                          : "border-transparent text-neutral-600 hover:text-black hover:bg-neutral-100/50"
                       }`}
                     >
-                      <Icon className={`w-3.5 h-3.5 ${active ? "text-[#FA500F]" : "text-neutral-500"}`} />
-                      <span>{tab.label}</span>
+                      <Icon className={`w-3.5 h-3.5 ${active ? "text-[#71ce34]" : "text-neutral-500"}`} />
+                      <span className="whitespace-nowrap">{tab.label}</span>
                       {tab.badge ? (
-                        <span className="ml-1 px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-[#FA500F] text-white">
+                        <span className="ml-1 px-1.5 py-0.2 text-[9px] font-bold rounded-full bg-[#71ce34] text-white animate-pulse-glow">
                           {tab.badge}
                         </span>
                       ) : null}
@@ -1071,11 +1084,15 @@ When reading sensor data:
               </div>
 
               {/* Live ESP32 Quick Status Pill */}
-              <div className="hidden sm:flex items-center gap-3 text-xs font-mono">
-                <span className="flex items-center gap-1 text-neutral-600">
-                  Temp:
+              <div className="hidden md:flex items-center gap-2.5 text-xs font-mono shrink-0 pl-2">
+                <span className="flex items-center gap-1.5 text-neutral-600">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span>Temp:</span>
                   <span
-                    className={`font-bold ${
+                    className={`font-bold transition-colors ${
                       telemetry.temperature > -10 ? "text-rose-600" : "text-emerald-700"
                     }`}
                   >
@@ -1089,31 +1106,31 @@ When reading sensor data:
             </div>
 
             {/* Quick Test Injections Banner */}
-            <div className="p-3 border-b border-[#E6E2DA] bg-[#FAF8F5] flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 font-bold mr-1">
+            <div className="p-2.5 sm:p-3 border-b border-[#E6E2DA] bg-[#FAF8F5] flex items-center gap-1.5 sm:gap-2 text-xs overflow-x-auto no-scrollbar">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-neutral-500 font-bold mr-1 shrink-0">
                 Inject Scenario:
               </span>
               <button
                 onClick={() => handleSimulate(-18.2, 81.0, false, "Nominal Storage")}
-                className="px-2.5 py-1 rounded bg-white hover:bg-neutral-50 text-neutral-800 border border-[#E0DCD4] text-xs font-medium transition shadow-2xs"
+                className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-white hover:bg-neutral-50 text-neutral-800 border border-[#E0DCD4] text-[11px] sm:text-xs font-medium transition shadow-2xs"
               >
                 ❄️ Nominal (-18.2°C)
               </button>
               <button
                 onClick={() => handleSimulate(-14.2, 87.0, false, "Defrost Spike")}
-                className="px-2.5 py-1 rounded bg-[#FFF4ED] hover:bg-[#FFEADA] text-[#FA500F] border border-[#FA500F]/40 text-xs font-bold transition flex items-center gap-1 shadow-2xs"
+                className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-[#F2FAEE] hover:bg-[#E5F6DE] text-[#71ce34] border border-[#71ce34]/40 text-[11px] sm:text-xs font-bold transition flex items-center gap-1 shadow-2xs"
               >
                 <Sparkles className="w-3 h-3" /> Defrost Spike (-14.2°C)
               </button>
               <button
                 onClick={() => handleSimulate(+2.8, 93.0, false, "Critical Breach")}
-                className="px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-xs font-medium transition shadow-2xs"
+                className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 text-[11px] sm:text-xs font-medium transition shadow-2xs"
               >
                 🚨 Thermal Breach (+2.8°C)
               </button>
               <button
                 onClick={() => handleSimulate(-15.0, 92.0, true, "Door Open")}
-                className="px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-medium transition shadow-2xs"
+                className="shrink-0 interactive-btn hover-lift px-2.5 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 text-[11px] sm:text-xs font-medium transition shadow-2xs"
               >
                 🚪 Door Left Open
               </button>
@@ -1123,11 +1140,11 @@ When reading sensor data:
             {arenaTab === "chat" && (
               <div className="flex-1 flex flex-col justify-between overflow-hidden bg-white">
                 {/* Message Log */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+                <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-3 sm:space-y-4">
                   {messages.map((m, idx) => (
                     <div
                       key={idx}
-                      className={`flex flex-col ${
+                      className={`flex flex-col animate-fade-in ${
                         m.role === "user" ? "items-end" : "items-start"
                       } space-y-1.5`}
                     >
@@ -1138,12 +1155,12 @@ When reading sensor data:
                       </div>
 
                       <div
-                        className={`p-3.5 rounded-lg max-w-[85%] text-xs leading-relaxed ${
+                        className={`p-3 sm:p-3.5 rounded-xl max-w-[92%] sm:max-w-[80%] text-xs leading-relaxed transition-all ${
                           m.role === "user"
-                            ? "bg-[#FA500F] text-white shadow-sm font-medium"
+                            ? "bg-[#71ce34] text-white shadow-sm font-medium rounded-tr-xs"
                             : m.role === "system"
-                            ? "bg-[#FFF9F5] border border-[#FA500F]/30 text-neutral-900 shadow-2xs"
-                            : "bg-[#F7F5F0] border border-[#E6E2DA] text-neutral-900 shadow-2xs"
+                            ? "bg-[#F4FBF0] border border-[#71ce34]/30 text-neutral-900 shadow-2xs rounded-tl-xs"
+                            : "bg-[#F7F5F0] border border-[#E6E2DA] text-neutral-900 shadow-2xs rounded-tl-xs"
                         }`}
                       >
                         {m.content}
@@ -1151,7 +1168,7 @@ When reading sensor data:
                         {/* Collapsible reasoning / step trace */}
                         {m.trace && m.trace.length > 0 && (
                           <div className="mt-3 pt-3 border-t border-[#E6E2DA] space-y-2">
-                            <span className="text-[10px] font-mono uppercase tracking-wider text-[#FA500F] font-bold block">
+                            <span className="text-[10px] font-mono uppercase tracking-wider text-[#71ce34] font-bold block">
                               Execution Reasoning &amp; Guardrail Trace:
                             </span>
                             {m.trace.map((step: any, sIdx: number) => (
@@ -1178,7 +1195,7 @@ When reading sensor data:
                 </div>
 
                 {/* Input Bar */}
-                <div className="p-4 border-t border-[#E6E2DA] bg-[#FAF8F5]">
+                <div className="p-2.5 sm:p-4 border-t border-[#E6E2DA] bg-[#FAF8F5]">
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -1186,15 +1203,15 @@ When reading sensor data:
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                       placeholder={`Prompt ${agentName} e.g., 'Evaluate container COLD-01 status at 02:00 UTC'...`}
-                      className="flex-1 bg-white border border-[#E0DCD4] rounded-lg px-3.5 py-2.5 text-xs text-[#0C0C0D] placeholder:text-neutral-400 focus:outline-none focus:border-[#FA500F] font-mono shadow-xs"
+                      className="flex-1 bg-white border border-[#E0DCD4] rounded-lg px-3 sm:px-3.5 py-2 sm:py-2.5 text-xs text-[#0C0C0D] placeholder:text-neutral-400 focus:outline-none focus:border-[#71ce34] focus:ring-1 focus:ring-[#71ce34]/30 font-mono shadow-xs transition"
                     />
                     <button
                       onClick={() => handleSendMessage()}
                       disabled={isRunning}
-                      className="px-4 py-2.5 bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 shadow-xs"
+                      className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[#71ce34] hover:bg-[#62b62b] text-white font-bold text-xs rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 shadow-xs interactive-btn shrink-0"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      {isRunning ? "Running..." : "Send"}
+                      <span className="hidden sm:inline">{isRunning ? "Running..." : "Send"}</span>
                     </button>
                   </div>
                 </div>
@@ -1203,27 +1220,27 @@ When reading sensor data:
 
             {/* Content for Arena Tab 2: ESP32 OLED Mirror */}
             {arenaTab === "oled" && (
-              <div className="flex-1 p-6 flex flex-col items-center justify-center space-y-6 bg-white">
+              <div className="flex-1 p-4 sm:p-6 flex flex-col items-center justify-center space-y-4 sm:space-y-6 bg-white animate-fade-in overflow-y-auto">
                 <div className="text-center space-y-1">
                   <h3 className="text-sm font-bold text-neutral-900 flex items-center justify-center gap-2">
-                    <Cpu className="w-4 h-4 text-[#FA500F]" />
+                    <Cpu className="w-4 h-4 text-[#71ce34]" />
                     Physical SSD1306 OLED Mirror (ESP32-S3)
                   </h3>
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-neutral-500 max-w-md px-2">
                     Live pixel-accurate state rendered on the 128x64 display wired to GPIO 8 (SDA) and GPIO 9 (SCL).
                   </p>
                 </div>
 
                 {/* The OLED frame */}
-                <div className="p-4 rounded-xl bg-[#111319] border-4 border-neutral-800 shadow-2xl">
-                  <div className="w-[300px] h-[150px] bg-[#020508] border border-cyan-900 rounded p-3 font-mono text-cyan-300 flex flex-col justify-between select-none">
+                <div className="w-full max-w-[320px] sm:max-w-[360px] p-3 sm:p-4 rounded-xl bg-[#111319] border-4 border-neutral-800 shadow-2xl transition-transform duration-300 hover:scale-[1.02]">
+                  <div className="w-full aspect-[2/1] bg-[#020508] border border-cyan-900/80 rounded p-3 font-mono text-cyan-300 flex flex-col justify-between select-none shadow-[inset_0_0_20px_rgba(0,255,255,0.06)]">
                     <div className="bg-cyan-300 text-black px-1 py-0.5 text-[10px] font-bold flex justify-between">
                       <span>SAPIENS // S3</span>
                       <span>{telemetry.doorOpen ? "ALARM" : "NOMINAL"}</span>
                     </div>
 
                     <div className="flex items-baseline justify-between">
-                      <span className="text-3xl font-black">{telemetry.temperature.toFixed(1)} C</span>
+                      <span className="text-2xl sm:text-3xl font-black">{telemetry.temperature.toFixed(1)} C</span>
                       <span className="text-[10px] border border-cyan-400 px-1 rounded">
                         {telemetry.suppressedByPolicy
                           ? "POLICY"
@@ -1245,29 +1262,29 @@ When reading sensor data:
                   </div>
                 </div>
 
-                <div className="text-xs text-neutral-700 font-mono bg-[#F7F5F0] p-3 rounded border border-[#E6E2DA] text-center">
-                  Firmware: <code className="text-[#FA500F] font-bold">src/sapiens_firmware.cpp</code> • Port: COM4
+                <div className="text-xs text-neutral-700 font-mono bg-[#F7F5F0] p-2.5 sm:p-3 rounded border border-[#E6E2DA] text-center max-w-sm">
+                  Firmware: <code className="text-[#71ce34] font-bold">src/sapiens_firmware.cpp</code> • Port: COM4
                 </div>
               </div>
             )}
 
             {/* Content for Arena Tab 3: Trace Inspector */}
             {arenaTab === "trace" && (
-              <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-white">
+              <div className="flex-1 p-3.5 sm:p-6 overflow-y-auto space-y-4 bg-white animate-fade-in">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-600">
                   Agent Execution &amp; Tool Intercept Log
                 </h3>
-                <div className="space-y-2 font-mono text-xs">
-                  <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1">
-                    <div className="flex items-center justify-between text-[#FA500F] font-bold">
+                <div className="space-y-2.5 font-mono text-xs">
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
+                    <div className="flex items-center justify-between text-[#71ce34] font-bold">
                       <span>TOOL: get_sensor_data()</span>
                       <span className="text-emerald-700">RISK: LOW (APPROVED)</span>
                     </div>
-                    <p className="text-neutral-700">Returned: {JSON.stringify(telemetry)}</p>
+                    <p className="text-neutral-700 break-all">Returned: {JSON.stringify(telemetry)}</p>
                   </div>
 
-                  <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1">
-                    <div className="flex items-center justify-between text-[#FA500F] font-bold">
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
+                    <div className="flex items-center justify-between text-[#71ce34] font-bold">
                       <span>TOOL: query_memory()</span>
                       <span className="text-emerald-700">RISK: LOW (APPROVED)</span>
                     </div>
@@ -1276,8 +1293,8 @@ When reading sensor data:
                     </p>
                   </div>
 
-                  <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1">
-                    <div className="flex items-center justify-between text-[#FA500F] font-bold">
+                  <div className="p-3 rounded-lg bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
+                    <div className="flex items-center justify-between text-[#71ce34] font-bold">
                       <span>TOOL: send_notification()</span>
                       <span className="text-amber-800">RISK: MED (POLICY-GATED)</span>
                     </div>
@@ -1291,7 +1308,7 @@ When reading sensor data:
 
             {/* Content for Arena Tab 4: Approvals Inbox */}
             {arenaTab === "approvals" && (
-              <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-white">
+              <div className="flex-1 p-3.5 sm:p-6 overflow-y-auto space-y-4 bg-white animate-fade-in">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-600">
                     High-Risk Human Approval Queue
@@ -1303,7 +1320,7 @@ When reading sensor data:
                   {approvals.map((app) => (
                     <div
                       key={app.id}
-                      className="p-4 rounded-lg bg-[#FFF9F5] border border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-2xs"
+                      className="p-3.5 sm:p-4 rounded-lg bg-[#F4FBF0] border border-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 text-xs shadow-2xs hover-lift transition-all"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -1319,13 +1336,13 @@ When reading sensor data:
                         <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={() => handleResolveApproval(app.id, "approved")}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded flex items-center gap-1 transition shadow-xs"
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded flex items-center gap-1 transition shadow-xs interactive-btn hover-lift"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                           </button>
                           <button
                             onClick={() => handleResolveApproval(app.id, "rejected")}
-                            className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-rose-700 border border-rose-300 rounded flex items-center gap-1 transition shadow-xs"
+                            className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-rose-700 border border-rose-300 rounded flex items-center gap-1 transition shadow-xs interactive-btn hover-lift"
                           >
                             <XCircle className="w-3.5 h-3.5" /> Reject
                           </button>
@@ -1348,36 +1365,36 @@ When reading sensor data:
       {/* VIEW 2: SAPIENS FRONTIER SHOWCASE (WHITE MODE)                */}
       {/* ───────────────────────────────────────────────────────────── */}
       {viewMode === "showcase" && (
-        <div className="flex-1 bg-[#FAF8F5] text-[#0C0C0D] py-12 px-4 sm:px-8 lg:px-16 space-y-16 selection:bg-[#FA500F] selection:text-white">
-          <div className="max-w-6xl mx-auto space-y-16">
+        <div className="flex-1 bg-[#FAF8F5] text-[#0C0C0D] py-8 sm:py-12 px-3 sm:px-8 lg:px-16 space-y-12 sm:space-y-16 selection:bg-[#71ce34] selection:text-white animate-fade-in">
+          <div className="max-w-6xl mx-auto space-y-12 sm:space-y-16">
             {/* Hero Section */}
-            <div className="space-y-6">
-              <h1 className="text-4xl sm:text-6xl font-sapiens-display tracking-tight text-[#0C0C0D] max-w-2xl">
+            <div className="space-y-5 sm:space-y-6">
+              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-sapiens-display tracking-tight text-[#0C0C0D] max-w-2xl">
                 Build your frontier with Studio.
               </h1>
 
               {/* Giant Electric Blue Banner (Frontier Studio Design) */}
-              <div className="sapiens-card-blue p-8 sm:p-12 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="sapiens-card-blue p-6 sm:p-8 md:p-12 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 hover-lift">
                 <div className="space-y-2 max-w-2xl">
-                  <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+                  <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-white">
                     Fine-tune, evaluate, and build frontier agents on any hardware stack.
                   </h2>
-                  <p className="text-white/90 text-sm">
+                  <p className="text-white/90 text-xs sm:text-sm leading-relaxed">
                     Autonomous agent workflows with real-time episodic reflection and deterministic guardrails.
                   </p>
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
                   <a
                     href="/agents/create"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-5 py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-md transition flex items-center gap-1.5"
+                    className="px-4 sm:px-5 py-2.5 sm:py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-md transition flex items-center gap-1.5 interactive-btn hover-lift"
                   >
                     <Plus className="w-4 h-4" /> Create Agent
                   </a>
                   <button
                     onClick={() => setViewMode("builder")}
-                    className="px-6 py-3 rounded bg-white hover:bg-neutral-100 text-[#0066FF] font-bold text-sm shadow-md transition flex items-center gap-2"
+                    className="px-5 sm:px-6 py-2.5 sm:py-3 rounded bg-white hover:bg-neutral-100 text-[#0066FF] font-bold text-xs sm:text-sm shadow-md transition flex items-center gap-2 interactive-btn hover-lift"
                   >
                     Open Studio Builder <ArrowRight className="w-4 h-4" />
                   </button>
@@ -1396,8 +1413,8 @@ When reading sensor data:
                 </p>
               </div>
 
-              {/* Big Vivid Orange Backdrop Card */}
-              <div className="sapiens-card-orange p-6 sm:p-8 shadow-lg space-y-4">
+              {/* Big Vivid Accent Backdrop Card */}
+              <div className="sapiens-card-orange p-5 sm:p-8 shadow-lg space-y-4 hover-lift">
                 <div className="bg-white rounded-lg p-4 sm:p-6 border border-neutral-200 text-[#0C0C0D] space-y-4 shadow-xl">
                   <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
                     <div className="flex items-center gap-2">
@@ -1406,21 +1423,21 @@ When reading sensor data:
                       <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
                       <span className="text-xs font-mono text-neutral-600 ml-2">sapiens-cold-chain.agent.ts</span>
                     </div>
-                    <span className="text-[10px] font-mono text-white bg-[#FA500F] px-2 py-0.5 rounded font-bold">
+                    <span className="text-[10px] font-mono text-white bg-[#71ce34] px-2 py-0.5 rounded font-bold">
                       EVE RUNTIME
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
-                    <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 text-xs font-mono">
+                    <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
                       <span className="text-neutral-500 block text-[10px]">1. EPISODIC INGESTION</span>
                       <span className="text-emerald-700 font-bold">3 Defrost Cycles Logged</span>
                     </div>
-                    <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1">
+                    <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
                       <span className="text-neutral-500 block text-[10px]">2. STATISTICAL REFLECTION</span>
                       <span className="text-amber-800 font-bold">96.4% Confidence Pattern</span>
                     </div>
-                    <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1">
+                    <div className="p-3 rounded bg-[#FAF8F5] border border-[#E6E2DA] space-y-1 hover-lift transition-all">
                       <span className="text-neutral-500 block text-[10px]">3. PROMPT INJECTION</span>
                       <span className="text-[#0066FF] font-bold">Policy #1 Live Enforced</span>
                     </div>
@@ -1440,35 +1457,35 @@ When reading sensor data:
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="sapiens-card-blue p-6 rounded-lg text-white space-y-4 shadow-md">
-                  <h3 className="text-xl font-bold">ESP32-S3 Microcontroller</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                <div className="sapiens-card-blue p-5 sm:p-6 rounded-lg text-white space-y-4 shadow-md hover-lift">
+                  <h3 className="text-lg sm:text-xl font-bold">ESP32-S3 Microcontroller</h3>
                   <p className="text-xs text-white/90 leading-relaxed">
                     Sub-second HTTP telemetry streams directly into the anomaly detection engine. If a thermal breach exceeds -10°C, the agent initiates emergency response.
                   </p>
-                  <div className="p-3 rounded bg-black/20 font-mono text-xs text-white">
+                  <div className="p-3 rounded bg-black/20 font-mono text-xs text-white break-all">
                     I2C SDA: GPIO 8 • SCL: GPIO 9 • Port: COM4
                   </div>
                 </div>
 
-                <div className="p-6 rounded-lg border border-[#E6E2DA] bg-white shadow-sm space-y-4">
-                  <h3 className="text-xl font-bold text-[#0C0C0D]">SSD1306 128x64 OLED Feedback</h3>
+                <div className="p-5 sm:p-6 rounded-lg border border-[#E6E2DA] bg-white shadow-sm space-y-4 hover-lift">
+                  <h3 className="text-lg sm:text-xl font-bold text-[#0C0C0D]">SSD1306 128x64 OLED Feedback</h3>
                   <p className="text-xs text-neutral-600 leading-relaxed">
-                    The microcontroller displays live agent decisions. When the learned defrost policy suppresses a false alarm, the physical OLED shows <code className="text-[#FA500F] font-bold">[POLICY]</code>.
+                    The microcontroller displays live agent decisions. When the learned defrost policy suppresses a false alarm, the physical OLED shows <code className="text-[#71ce34] font-bold">[POLICY]</code>.
                   </p>
                   <div className="p-3 rounded bg-[#FAF8F5] font-mono text-xs text-neutral-700 border border-[#EAE6DE]">
                     Live Status: -18.4°C • NOMINAL • COM4 ONLINE
                   </div>
                 </div>
 
-                <div className="p-6 rounded-lg border border-[#E6E2DA] bg-white shadow-sm space-y-4">
-                  <h3 className="text-xl font-bold text-[#0C0C0D]">WhatsApp &amp; Discord Gateway</h3>
+                <div className="p-5 sm:p-6 rounded-lg border border-[#E6E2DA] bg-white shadow-sm space-y-4 hover-lift">
+                  <h3 className="text-lg sm:text-xl font-bold text-[#0C0C0D]">WhatsApp &amp; Discord Gateway</h3>
                   <p className="text-xs text-neutral-600 leading-relaxed">
                     Two-way messaging allows operators to receive formatted alert cards and approve high-risk commands remotely via chat.
                   </p>
                   <button
                     onClick={() => setShowChannelsModal(true)}
-                    className="w-full py-2 bg-[#FA500F] hover:bg-[#ff6422] text-white text-xs font-bold rounded transition"
+                    className="w-full py-2 bg-[#71ce34] hover:bg-[#62b62b] text-white text-xs font-bold rounded transition interactive-btn hover-lift"
                   >
                     Configure Messaging Channels
                   </button>
@@ -1487,32 +1504,32 @@ When reading sensor data:
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-5 rounded-lg bg-white border border-[#E6E2DA] space-y-2 shadow-xs">
-                  <span className="text-[10px] font-mono font-bold text-[#FA500F] uppercase tracking-wider">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+                <div className="p-5 rounded-lg bg-white border border-[#E6E2DA] space-y-2 shadow-xs hover-lift">
+                  <span className="text-[10px] font-mono font-bold text-[#71ce34] uppercase tracking-wider">
                     CALCULATED TRUST
                   </span>
-                  <div className="text-3xl font-black text-[#0C0C0D] font-mono">92.4% (A+)</div>
+                  <div className="text-2xl sm:text-3xl font-black text-[#0C0C0D] font-mono">92.4% (A+)</div>
                   <p className="text-xs text-neutral-600">
                     Computed transparently from safe tool executions, operator alignment, and low concept drift.
                   </p>
                 </div>
 
-                <div className="p-5 rounded-lg bg-white border border-[#E6E2DA] space-y-2 shadow-xs">
+                <div className="p-5 rounded-lg bg-white border border-[#E6E2DA] space-y-2 shadow-xs hover-lift">
                   <span className="text-[10px] font-mono font-bold text-rose-600 uppercase tracking-wider">
                     HARDWARE GATING
                   </span>
-                  <div className="text-3xl font-black text-[#0C0C0D] font-mono">Strict Human Sign-off</div>
+                  <div className="text-2xl sm:text-3xl font-black text-[#0C0C0D] font-mono">Strict Human Sign-off</div>
                   <p className="text-xs text-neutral-600">
                     Actions categorized as High Risk (e.g. compressor shutdown) are quarantined until manually approved.
                   </p>
                 </div>
 
-                <div className="p-5 rounded-lg bg-white border border-[#E6E2DA] space-y-2 shadow-xs">
+                <div className="p-5 rounded-lg bg-white border border-[#E6E2DA] space-y-2 shadow-xs hover-lift">
                   <span className="text-[10px] font-mono font-bold text-[#0066FF] uppercase tracking-wider">
                     POLICY PROMOTION
                   </span>
-                  <div className="text-3xl font-black text-[#0C0C0D] font-mono">Candidate Review</div>
+                  <div className="text-2xl sm:text-3xl font-black text-[#0C0C0D] font-mono">Candidate Review</div>
                   <p className="text-xs text-neutral-600">
                     Candidate patterns synthesized by the Reflection Engine require operator sign-off before entering production prompt.
                   </p>
@@ -1521,7 +1538,7 @@ When reading sensor data:
             </div>
 
             {/* Bottom CTA Banner (Frontier Studio Design) */}
-            <div className="sapiens-card-orange p-8 sm:p-12 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+            <div className="sapiens-card-orange p-6 sm:p-8 md:p-12 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 hover-lift">
               <div className="space-y-1 text-center md:text-left">
                 <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                   Build, customize and deploy AI solutions with complete control.
@@ -1530,58 +1547,33 @@ When reading sensor data:
                   graVITas Hackathon MVP • Autonomous Self-Learning &amp; Hardware Guardrail Agent Platform
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
                 <a
                   href="/agents/create"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-5 py-3 rounded bg-white hover:bg-neutral-100 text-[#0C0C0D] font-bold text-xs uppercase tracking-wider shadow-md transition inline-flex items-center gap-1.5"
+                  className="px-4 sm:px-5 py-2.5 sm:py-3 rounded bg-white hover:bg-neutral-100 text-[#0C0C0D] font-bold text-xs uppercase tracking-wider shadow-md transition inline-flex items-center gap-1.5 interactive-btn hover-lift"
                 >
                   <Plus className="w-3.5 h-3.5" /> New Agent
                 </a>
                 <button
                   onClick={() => setViewMode("builder")}
-                  className="px-6 py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-lg transition"
+                  className="px-5 sm:px-6 py-2.5 sm:py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-lg transition interactive-btn hover-lift"
                 >
                   Launch Studio Builder
                 </button>
               </div>
             </div>
 
-            {/* Footer with Iconic Sapiens Pixel Logo Mark */}
-            <footer className="pt-12 pb-8 border-t border-[#E6E2DA] flex flex-col items-center justify-center space-y-4">
-              <div className="grid grid-cols-5 gap-1 w-12 h-12">
-                {/* Row 1: S top bar */}
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                {/* Row 2: S top left */}
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-transparent"></div>
-                {/* Row 3: S middle bar */}
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                {/* Row 4: S bottom right */}
-                <div className="bg-transparent"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-transparent"></div>
-                <div className="bg-[#FA500F]"></div>
-                {/* Row 5: S bottom bar */}
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-                <div className="bg-[#FA500F]"></div>
-              </div>
+            {/* Footer with Iconic Sapiens Logo */}
+            <footer className="pt-12 pb-8 border-t border-[#E6E2DA] flex flex-col items-center justify-center space-y-3">
+              <Image
+                src="/logo.png"
+                alt="Sapiens Logo"
+                width={48}
+                height={48}
+                className="w-12 h-12 object-contain hover:scale-105 transition-transform duration-300"
+              />
               <span className="text-xs text-neutral-500 font-mono font-bold tracking-wider">
                 SAPIENS AGENT • Autonomous Self-Learning &amp; Guardrail AI Platform
               </span>
