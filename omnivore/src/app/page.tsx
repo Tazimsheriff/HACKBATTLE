@@ -104,7 +104,6 @@ export default function MistralAgentStudio() {
   const [viewMode, setViewMode] = useState<"builder" | "showcase">("builder");
 
   // Modals state
-  const [showNewAgentModal, setShowNewAgentModal] = useState(false);
   const [showChannelsModal, setShowChannelsModal] = useState(false);
   const [channelTab, setChannelTab] = useState<"whatsapp" | "discord" | "telegram">("whatsapp");
   const [channelToast, setChannelToast] = useState<string | null>(null);
@@ -137,12 +136,6 @@ When reading sensor data:
   ]);
   const [selectedAgentId, setSelectedAgentId] = useState("omnivore-cold-chain");
 
-  // New Agent Form
-  const [newAgentName, setNewAgentName] = useState("");
-  const [newAgentDesc, setNewAgentDesc] = useState("");
-  const [newAgentGoal, setNewAgentGoal] = useState("");
-  const [newAgentModel, setNewAgentModel] = useState("google/gemini-2.0-flash-001");
-  const [newAgentPrompt, setNewAgentPrompt] = useState("");
 
   // Channels Form
   const [discordWebhook, setDiscordWebhook] = useState("");
@@ -177,35 +170,6 @@ When reading sensor data:
     }
   };
 
-  // Create new agent
-  const handleCreateAgent = async () => {
-    if (!newAgentName.trim()) return;
-    try {
-      const res = await fetch("/api/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newAgentName,
-          description: newAgentDesc,
-          goal: newAgentGoal,
-          instructions: newAgentPrompt,
-          model: newAgentModel,
-        }),
-      });
-      const data = await res.json();
-      if (data.agent) {
-        setAgentsList((prev) => [...prev, data.agent]);
-        handleSelectAgent(data.agent.id);
-        setShowNewAgentModal(false);
-        setNewAgentName("");
-        setNewAgentDesc("");
-        setNewAgentGoal("");
-        setNewAgentPrompt("");
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   // Test Channel
   const handleTestChannel = async (channel: "whatsapp" | "discord" | "telegram") => {
@@ -311,6 +275,11 @@ When reading sensor data:
 
   useEffect(() => {
     fetchData();
+    const handleFocus = () => {
+      fetchData();
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, []);
 
   // Send Telemetry Simulation
@@ -499,13 +468,15 @@ When reading sensor data:
                   </option>
                 ))}
               </select>
-              <button
-                onClick={() => setShowNewAgentModal(true)}
-                className="ml-1.5 p-1 rounded bg-[#FA500F] hover:bg-[#ff6422] text-white transition"
-                title="Create New Agent"
+              <a
+                href="/agents/create"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ml-1.5 p-1 rounded bg-[#FA500F] hover:bg-[#ff6422] text-white transition flex items-center justify-center"
+                title="Create New Agent (Opens Studio in New Window)"
               >
                 <Plus className="w-3 h-3" />
-              </button>
+              </a>
             </div>
 
             {/* Channels Button (WhatsApp, Discord, Telegram) */}
@@ -564,102 +535,7 @@ When reading sensor data:
         </div>
       </header>
 
-      {/* ───────────────────────────────────────────────────────────── */}
-      {/* MODAL 1: CREATE NEW AGENT                                     */}
-      {/* ───────────────────────────────────────────────────────────── */}
-      {showNewAgentModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-[#E6E2DA] max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-[#E6E2DA] pb-3">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 rounded bg-[#FA500F] text-white">
-                  <Bot className="w-4 h-4" />
-                </div>
-                <h3 className="text-base font-bold text-[#0C0C0D]">Create New Agent</h3>
-              </div>
-              <button
-                onClick={() => setShowNewAgentModal(false)}
-                className="text-neutral-400 hover:text-black"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-neutral-800 block mb-1">Agent Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Pharmacy Vault S3, Freezer Drone, Warehouse Sentinel"
-                  value={newAgentName}
-                  onChange={(e) => setNewAgentName(e.target.value)}
-                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs focus:outline-none focus:border-[#FA500F] focus:bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-neutral-800 block mb-1">Short Description</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Environmental monitor for temperature & humidity"
-                  value={newAgentDesc}
-                  onChange={(e) => setNewAgentDesc(e.target.value)}
-                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs focus:outline-none focus:border-[#FA500F] focus:bg-white"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-neutral-800 block mb-1">Model</label>
-                  <select
-                    value={newAgentModel}
-                    onChange={(e) => setNewAgentModel(e.target.value)}
-                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs focus:outline-none focus:border-[#FA500F]"
-                  >
-                    <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash (Fast)</option>
-                    <option value="mistralai/mistral-large-2407">Mistral Large 2</option>
-                    <option value="mistralai/mistral-nemo">Mistral Nemo (Edge)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="font-bold text-neutral-800 block mb-1">Target Hardware</label>
-                  <input
-                    type="text"
-                    defaultValue="ESP32-S3-DevKitC-1"
-                    className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono text-neutral-600"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-neutral-800 block mb-1">System Instructions / Goal</label>
-                <textarea
-                  rows={4}
-                  placeholder="Define how this agent evaluates anomalies and applies safety boundaries..."
-                  value={newAgentPrompt}
-                  onChange={(e) => setNewAgentPrompt(e.target.value)}
-                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded p-2 text-xs font-mono focus:outline-none focus:border-[#FA500F] focus:bg-white resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#E6E2DA]">
-              <button
-                onClick={() => setShowNewAgentModal(false)}
-                className="px-3 py-1.5 rounded text-xs text-neutral-600 hover:text-black"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateAgent}
-                className="px-4 py-2 bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs rounded transition flex items-center gap-1 shadow-xs"
-              >
-                <Plus className="w-3.5 h-3.5" /> Instantiate Agent
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* MODAL 2: CONNECT CHANNELS (WHATSAPP, DISCORD, TELEGRAM)       */}
@@ -1411,12 +1287,14 @@ When reading sensor data:
                   </p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <button
-                    onClick={() => setShowNewAgentModal(true)}
+                  <a
+                    href="/agents/create"
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="px-5 py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-md transition flex items-center gap-1.5"
                   >
                     <Plus className="w-4 h-4" /> Create Agent
-                  </button>
+                  </a>
                   <button
                     onClick={() => setViewMode("builder")}
                     className="px-6 py-3 rounded bg-white hover:bg-neutral-100 text-[#0066FF] font-bold text-sm shadow-md transition flex items-center gap-2"
@@ -1573,12 +1451,14 @@ When reading sensor data:
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowNewAgentModal(true)}
-                  className="px-5 py-3 rounded bg-white hover:bg-neutral-100 text-[#0C0C0D] font-bold text-xs uppercase tracking-wider shadow-md transition"
+                <a
+                  href="/agents/create"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-5 py-3 rounded bg-white hover:bg-neutral-100 text-[#0C0C0D] font-bold text-xs uppercase tracking-wider shadow-md transition inline-flex items-center gap-1.5"
                 >
-                  + New Agent
-                </button>
+                  <Plus className="w-3.5 h-3.5" /> New Agent
+                </a>
                 <button
                   onClick={() => setViewMode("builder")}
                   className="px-6 py-3 rounded bg-black hover:bg-neutral-900 text-white font-bold text-xs uppercase tracking-wider shadow-lg transition"
