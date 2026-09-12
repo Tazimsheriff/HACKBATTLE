@@ -151,6 +151,8 @@ When reading sensor data:
   const [selectedModel, setSelectedModel] = useState(currentAgent.model);
   const [systemPrompt, setSystemPrompt] = useState(currentAgent.instructions || "");
   const [enabledTools, setEnabledTools] = useState({
+    read_emails: true,
+    web_search: true,
     get_sensor_data: true,
     query_memory: true,
     send_notification: true,
@@ -842,6 +844,20 @@ When reading sensor data:
 
               <div className="space-y-2 text-xs">
                 {[
+                  {
+                    key: "read_emails",
+                    name: "read_emails()",
+                    desc: "Scan and parse Gmail inbox messages",
+                    risk: "LOW",
+                    riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
+                  },
+                  {
+                    key: "web_search",
+                    name: "web_search()",
+                    desc: "Live web search & research lookup",
+                    risk: "LOW",
+                    riskColor: "bg-emerald-50 text-emerald-700 border-emerald-300",
+                  },
                   {
                     key: "get_sensor_data",
                     name: "get_sensor_data()",

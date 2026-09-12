@@ -14,8 +14,12 @@ import {
   Share2,
   Check,
   Zap,
-  Sliders,
-  Play,
+  Mail,
+  Globe,
+  HardDrive,
+  Loader2,
+  RefreshCw,
+  Info,
 } from "lucide-react";
 
 export default function CreateAgentPage() {
@@ -26,20 +30,19 @@ export default function CreateAgentPage() {
   const [goal, setGoal] = useState("");
   const [model, setModel] = useState("open-mistral-nemo");
   const [temperature, setTemperature] = useState(0.2);
-  const [hardwareDeviceId, setHardwareDeviceId] = useState("ESP32-S3-COLD-01");
-  const [instructions, setInstructions] = useState(
-    `You are an autonomous guardian agent. Your goal is to monitor sensor telemetry, evaluate anomalies against learned episodic memory, and enforce strict execution boundaries.
-1. When receiving telemetry, cross-reference with historical patterns.
-2. If an anomaly matches an authorized routine, hold emergency alarms.
-3. If genuine breach occurs, trigger priority notifications.
-4. Any hardware shutdown requires explicit human authorization.`
-  );
 
+  // Hardware binding is completely optional
+  const [hasHardware, setHasHardware] = useState(false);
+  const [hardwareDeviceId, setHardwareDeviceId] = useState("ESP32-S3-COLD-01");
+
+  // Instructions start clean and adapt to the user's mission
+  const [instructions, setInstructions] = useState("");
+  const [isGeneratingPrompt, setIsGeneratingPrompt] = useState(false);
+
+  // Tools list
   const [selectedTools, setSelectedTools] = useState<string[]>([
-    "get_sensor_data",
     "query_memory",
     "send_notification",
-    "emergency_compressor_cutoff",
   ]);
 
   const [selectedChannels, setSelectedChannels] = useState<{
@@ -54,38 +57,123 @@ export default function CreateAgentPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Template Quick Loader
-  const handleApplyTemplate = (type: "coldchain" | "pharma" | "industrial") => {
-    if (type === "coldchain") {
+  // Dynamic Prompt Generator powered by Mistral AI
+  const handleAutoGeneratePrompt = async () => {
+    if (!name.trim() && !description.trim()) {
+      alert("Please enter an Agent Name or Short Mission Description first.");
+      return;
+    }
+
+    setIsGeneratingPrompt(true);
+    try {
+      const res = await fetch("/api/agents/generate-prompt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name || "Custom Autonomous Agent",
+          description: description || "Autonomous workflow assistant",
+          hasHardware,
+          hardwareDeviceId: hasHardware ? hardwareDeviceId : "",
+        }),
+      });
+
+      const data = await res.json();
+      if (data.prompt) {
+        setInstructions(data.prompt);
+
+        // Auto-select relevant tools based on mission
+        const fullText = (name + " " + description).toLowerCase();
+        const newTools = new Set(selectedTools);
+        if (fullText.includes("mail") || fullText.includes("gmail") || fullText.includes("inbox")) {
+          newTools.add("read_emails");
+        }
+        if (fullText.includes("search") || fullText.includes("web") || fullText.includes("research")) {
+          newTools.add("web_search");
+        }
+        if (fullText.includes("sensor") || fullText.includes("temperature") || hasHardware) {
+          newTools.add("get_sensor_data");
+        }
+        setSelectedTools(Array.from(newTools));
+      }
+    } catch (err) {
+      console.error("Prompt generation failed:", err);
+    } finally {
+      setIsGeneratingPrompt(false);
+    }
+  };
+
+  // Diverse Template Quick Loader
+  const handleApplyTemplate = (type: "gmail" | "research" | "devops" | "coldchain") => {
+    if (type === "gmail") {
+      setName("Gmail Priority Sentinel");
+      setDescription("Monitor Gmail inbox, filter noise, extract urgent emails, and provide priority digests.");
+      setGoal("Read Gmail inbox and surface actionable high-priority emails.");
+      setHasHardware(false);
+      setSelectedTools(["read_emails", "query_memory", "send_notification"]);
+      setInstructions(`# **GMAIL PRIORITY SENTINEL**
+**Role:** Autonomous Email Intelligence & Prioritization Assistant
+
+### **Core Mission & Objectives**
+- **Scan & Filter:** Parse incoming Gmail messages to distinguish urgent action items from routine correspondence and spam.
+- **Categorize:** Label emails as CRITICAL (deadlines/executive), IMPORTANT (actionable), or ROUTINE (newsletters/FYI).
+- **Digest:** Deliver concise email summaries and daily digests to configured notification channels.
+- **Escalation:** Immediately alert user on high-priority threads.
+
+### **Safety & Guardrails**
+- Never send automated email replies without explicit human review.
+- Never delete or permanently modify email records.
+- Preserve strict confidentiality and credential isolation.`);
+    } else if (type === "research") {
+      setName("Web Research & Market Sentinel");
+      setDescription("Perform automated web research, synthesize data sources, and compile executive briefings.");
+      setGoal("Conduct structured web research and produce factual analytical summaries.");
+      setHasHardware(false);
+      setSelectedTools(["web_search", "query_memory", "send_notification"]);
+      setInstructions(`# **WEB RESEARCH & MARKET SENTINEL**
+**Role:** Autonomous Intelligence & Source Synthesis Analyst
+
+### **Core Mission & Objectives**
+- **Formulate Queries:** Transform research topics into targeted search queries.
+- **Synthesize Sources:** Retrieve, verify, and cross-reference public domain information.
+- **Deliver Briefings:** Format findings into clear, structured Markdown reports with citations.
+
+### **Safety & Guardrails**
+- Cross-validate factual claims against at least two independent sources.
+- Never submit external web forms or conduct automated transactions.`);
+    } else if (type === "devops") {
+      setName("DevOps & Incident Sentinel");
+      setDescription("Track error webhooks, query deployment health, and manage incident responses.");
+      setGoal("Monitor system telemetry and alert on deployment regressions.");
+      setHasHardware(false);
+      setSelectedTools(["database_query", "query_memory", "send_notification"]);
+      setInstructions(`# **DEVOPS & INCIDENT SENTINEL**
+**Role:** Infrastructure Watchdog & Incident Triage Agent
+
+### **Core Mission & Objectives**
+- **Monitor Health:** Analyze deployment webhooks, server error spikes, and latency logs.
+- **Triage Incidents:** Correlate telemetry spikes against recent code deployments.
+- **Notify On-Call:** Broadcast high-severity incidents to Discord/Telegram.
+
+### **Safety & Guardrails**
+- Automated rollback actions require human authorization.
+- Never disclose production API tokens or environment secrets in public logs.`);
+    } else if (type === "coldchain") {
       setName("Vaccine Storage Sentinel");
-      setDescription("Ultra-low temperature monitor with automated defrost cycle learning.");
+      setDescription("Ultra-low temperature monitor with automated defrost cycle learning and OLED mirror.");
       setGoal("Maintain container COLD-01 at -18°C and suppress false alarms.");
+      setHasHardware(true);
       setHardwareDeviceId("ESP32-S3-COLD-01");
-      setInstructions(`You are the Vaccine Storage Sentinel.
-Your mission is to maintain vaccine cold-storage at -18°C.
-- Read ESP32 sensor telemetry via get_sensor_data.
-- Check past episodic experiences for bi-daily 02:00 UTC defrost cycles.
-- Suppress sirens if temp rises to -14°C during scheduled defrost.
-- Never shut down compressor without human authorization.`);
-    } else if (type === "pharma") {
-      setName("Pharma Cleanroom Monitor");
-      setDescription("Environmental monitor tracking relative humidity and door micro-apertures.");
-      setGoal("Keep cleanroom humidity under 60% and monitor airlock duration.");
-      setHardwareDeviceId("ESP32-S3-CLEANROOM");
-      setInstructions(`You are the Pharma Cleanroom Monitor.
-Your mission is to preserve pharmaceutical integrity.
-- Monitor relative humidity and door seal sensors.
-- If door stays open for > 45 seconds, notify cleanroom supervisor.
-- Learn routine forklift transfer patterns to prevent spurious alerts.`);
-    } else if (type === "industrial") {
-      setName("Thermal Overload Watchdog");
-      setDescription("High-current motor and compressor guardian protecting against thermal runaway.");
-      setGoal("Prevent compressor stator burnout while maintaining uptime.");
-      setHardwareDeviceId("ESP32-S3-MOTOR-01");
-      setInstructions(`You are the Thermal Overload Watchdog.
-- Monitor compressor thermal rise rate (°C per minute).
-- If temperature delta exceeds +6.0°C/min, enter high-alert quarantine.
-- Request human authorization before initiating emergency breaker cutoff.`);
+      setSelectedTools(["get_sensor_data", "query_memory", "send_notification", "emergency_relay_cutoff"]);
+      setInstructions(`# **VACCINE STORAGE SENTINEL**
+**Role:** IoT Physical Storage Sentinel (ESP32-S3-COLD-01)
+
+### **Core Mission & Objectives**
+- **Monitor Telemetry:** Continuously sample temperature and door aperture from ESP32 sensors.
+- **Learn Routines:** Check episodic memory for authorized defrost cycles (02:00 UTC) and hold false alarms.
+- **Guard Cold-Chain:** Trigger priority sirens if temperature exceeds critical thresholds outside defrost windows.
+
+### **Safety & Guardrails**
+- Compressor shutoff or hardware breaker actions strictly require human authorization.`);
     }
   };
 
@@ -104,14 +192,17 @@ Your mission is to preserve pharmaceutical integrity.
           name,
           description,
           goal: goal || description || name,
-          instructions,
+          instructions: instructions || `You are ${name}. Carry out tasks safely within defined guardrails.`,
           model,
           tools: selectedTools,
+          metadata: {
+            hasHardware,
+            hardwareDeviceId: hasHardware ? hardwareDeviceId : null,
+          },
         }),
       });
 
       if (res.ok) {
-        // Redirect back to studio builder
         router.push("/");
       } else {
         alert("Failed to create agent");
@@ -160,7 +251,7 @@ Your mission is to preserve pharmaceutical integrity.
             <button
               onClick={handleCreate}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 disabled:opacity-50"
+              className="px-4 py-2 rounded bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs shadow-xs transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
               <Check className="w-3.5 h-3.5" />
               {isSubmitting ? "Deploying..." : "Save & Launch Agent"}
@@ -177,7 +268,7 @@ Your mission is to preserve pharmaceutical integrity.
             Create a New Autonomous Agent
           </h1>
           <p className="text-xs text-neutral-600">
-            Configure agent identity, reasoning models, hardware bindings, and deterministic guardrail boundaries.
+            Build custom software or hardware agents. Configure intelligence models, instructions, and safety guardrails.
           </p>
         </div>
 
@@ -185,44 +276,78 @@ Your mission is to preserve pharmaceutical integrity.
         <div className="space-y-2">
           <span className="text-xs font-bold text-neutral-800 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-[#FA500F]" />
-            Quick Starter Templates
+            Quick Starter Templates (Software &amp; Hardware)
           </span>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <button
               type="button"
-              onClick={() => handleApplyTemplate("coldchain")}
-              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#FA500F] text-left transition shadow-2xs space-y-1"
+              onClick={() => handleApplyTemplate("gmail")}
+              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#FA500F] text-left transition shadow-2xs space-y-1 group cursor-pointer"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-[#0C0C0D]">❄️ Vaccine Cold-Chain</span>
-                <span className="text-[10px] font-mono text-[#FA500F] bg-orange-50 px-1.5 py-0.2 rounded font-bold">
-                  Recommended
+                <span className="text-xs font-bold text-[#0C0C0D] flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-[#FA500F]" /> Gmail Sentinel
+                </span>
+                <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-bold">
+                  Software
                 </span>
               </div>
               <p className="text-[11px] text-neutral-500">
-                Auto-learns defrost cycles and suppresses false alarms.
+                Filters inbox, flags urgent messages, digests high-priority emails.
               </p>
             </button>
 
             <button
               type="button"
-              onClick={() => handleApplyTemplate("pharma")}
-              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#FA500F] text-left transition shadow-2xs space-y-1"
+              onClick={() => handleApplyTemplate("research")}
+              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#0066FF] text-left transition shadow-2xs space-y-1 group cursor-pointer"
             >
-              <span className="text-xs font-bold text-[#0C0C0D] block">💊 Cleanroom Monitor</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#0C0C0D] flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-[#0066FF]" /> Web Research
+                </span>
+                <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-bold">
+                  Software
+                </span>
+              </div>
               <p className="text-[11px] text-neutral-500">
-                Monitors airlocks, relative humidity, and door micro-apertures.
+                Gathers online intelligence, synthesizes facts, and compiles briefs.
               </p>
             </button>
 
             <button
               type="button"
-              onClick={() => handleApplyTemplate("industrial")}
-              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#FA500F] text-left transition shadow-2xs space-y-1"
+              onClick={() => handleApplyTemplate("devops")}
+              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-purple-500 text-left transition shadow-2xs space-y-1 group cursor-pointer"
             >
-              <span className="text-xs font-bold text-[#0C0C0D] block">⚡ Thermal Watchdog</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#0C0C0D] flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-purple-600" /> DevOps Sentinel
+                </span>
+                <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded font-bold">
+                  Software
+                </span>
+              </div>
               <p className="text-[11px] text-neutral-500">
-                Guards high-power compressors against thermal runaway.
+                Monitors error webhooks, logs, and deployment regressions.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleApplyTemplate("coldchain")}
+              className="p-3.5 rounded-lg bg-white border border-[#E6E2DA] hover:border-[#FA500F] text-left transition shadow-2xs space-y-1 group cursor-pointer"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#0C0C0D] flex items-center gap-1.5">
+                  ❄️ Cold-Chain IoT
+                </span>
+                <span className="text-[10px] font-mono text-cyan-700 bg-cyan-50 px-1.5 py-0.2 rounded font-bold">
+                  Hardware
+                </span>
+              </div>
+              <p className="text-[11px] text-neutral-500">
+                ESP32 telemetry, defrost learning, and physical OLED mirror.
               </p>
             </button>
           </div>
@@ -230,10 +355,10 @@ Your mission is to preserve pharmaceutical integrity.
 
         {/* Form Sections */}
         <div className="space-y-6">
-          {/* Section 1: Identity */}
-          <div className="p-6 rounded-xl bg-white border border-[#E6E2DA] shadow-xs space-y-4">
+          {/* Section 1: Identity & Scope */}
+          <div className="p-6 rounded-xl bg-white border border-[#E6E2DA] shadow-xs space-y-5">
             <h2 className="text-sm font-bold uppercase tracking-wider text-[#FA500F] font-mono flex items-center gap-2">
-              <Bot className="w-4 h-4" /> 1. Agent Identity &amp; Target Hardware
+              <Bot className="w-4 h-4" /> 1. Agent Identity &amp; Scope
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -242,7 +367,7 @@ Your mission is to preserve pharmaceutical integrity.
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Vaccine Storage Sentinel"
+                  placeholder="e.g. Gmail Priority Sentinel, Research Analyst, DevOps Watchdog"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs text-[#0C0C0D] focus:outline-none focus:border-[#FA500F] focus:bg-white"
@@ -250,25 +375,58 @@ Your mission is to preserve pharmaceutical integrity.
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-neutral-800 block">Target Microcontroller / Device ID</label>
-                <input
-                  type="text"
-                  value={hardwareDeviceId}
-                  onChange={(e) => setHardwareDeviceId(e.target.value)}
-                  className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F] focus:bg-white"
-                />
-              </div>
-
-              <div className="sm:col-span-2 space-y-1">
                 <label className="font-bold text-neutral-800 block">Short Mission Description</label>
                 <input
                   type="text"
-                  placeholder="e.g. Autonomous temperature container monitor with continuous reflection"
+                  placeholder="e.g. Read incoming Gmail messages and extract high-priority emails"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-2.5 text-xs text-[#0C0C0D] focus:outline-none focus:border-[#FA500F] focus:bg-white"
                 />
               </div>
+            </div>
+
+            {/* Optional Hardware Binding - Clean toggle */}
+            <div className="pt-2 border-t border-[#F0EBE1]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="hardwareToggle"
+                    checked={hasHardware}
+                    onChange={(e) => setHasHardware(e.target.checked)}
+                    className="accent-[#FA500F] w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="hardwareToggle" className="text-xs font-bold text-neutral-800 cursor-pointer">
+                    Connect to Physical Hardware / Microcontroller (Optional)
+                  </label>
+                </div>
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                  hasHardware ? "bg-cyan-50 text-cyan-700" : "bg-emerald-50 text-emerald-700"
+                }`}>
+                  {hasHardware ? "Hardware Connected" : "Software / Cloud Only"}
+                </span>
+              </div>
+
+              {hasHardware ? (
+                <div className="mt-3 p-3 rounded-lg bg-[#FAF8F5] border border-[#E0DCD4] space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <label className="font-bold text-neutral-800">Target Microcontroller / Device ID</label>
+                    <span className="text-[10px] font-mono text-neutral-500">e.g. ESP32-S3-COLD-01, Arduino-01</span>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. ESP32-S3-COLD-01"
+                    value={hardwareDeviceId}
+                    onChange={(e) => setHardwareDeviceId(e.target.value)}
+                    className="w-full bg-white border border-[#E0DCD4] rounded p-2 text-xs font-mono text-[#0C0C0D] focus:outline-none focus:border-[#FA500F]"
+                  />
+                </div>
+              ) : (
+                <p className="text-[11px] text-neutral-500 mt-1">
+                  This agent operates as a software assistant (Gmail, web research, automation). No microcontroller required.
+                </p>
+              )}
             </div>
           </div>
 
@@ -311,94 +469,203 @@ Your mission is to preserve pharmaceutical integrity.
             </div>
           </div>
 
-          {/* Section 3: Instructions (System Prompt) */}
+          {/* Section 3: Instructions (Custom or Auto-Generated) */}
           <div className="p-6 rounded-xl bg-white border border-[#E6E2DA] shadow-xs space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900 font-mono flex items-center gap-2">
-              <Terminal className="w-4 h-4 text-[#FA500F]" /> 3. System Instructions &amp; Safety Directives
-            </h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-neutral-900 font-mono flex items-center gap-2">
+                  <Terminal className="w-4 h-4 text-[#FA500F]" /> 3. System Instructions &amp; Safety Directives
+                </h2>
+                <p className="text-[11px] text-neutral-500">
+                  Write custom instructions or generate them dynamically based on your mission description.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAutoGeneratePrompt}
+                disabled={isGeneratingPrompt}
+                className="px-3.5 py-1.5 rounded-lg bg-orange-50 hover:bg-orange-100 border border-[#FA500F]/30 text-[#FA500F] font-bold text-xs flex items-center gap-1.5 transition self-start sm:self-auto cursor-pointer disabled:opacity-50"
+              >
+                {isGeneratingPrompt ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Generating with Mistral...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Generate from Mission</span>
+                  </>
+                )}
+              </button>
+            </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-bold text-neutral-800 block">
-                Agent System Prompt (Markdown)
-              </label>
               <textarea
-                rows={6}
+                rows={9}
+                placeholder={`Define how this agent processes tasks, what sources it reads, and what safety boundaries it must observe.
+
+Tip: Click 'Generate from Mission' above to automatically draft tailored instructions from your Agent Name and Description!`}
                 value={instructions}
                 onChange={(e) => setInstructions(e.target.value)}
-                className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-3 text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#FA500F] focus:bg-white leading-relaxed resize-none"
+                className="w-full bg-[#FAF8F5] border border-[#E0DCD4] rounded-lg p-3.5 text-xs font-mono text-neutral-900 focus:outline-none focus:border-[#FA500F] focus:bg-white leading-relaxed resize-y"
               />
             </div>
           </div>
 
           {/* Section 4: Capabilities & Tools */}
-          <div className="p-6 rounded-xl bg-white border border-[#E6E2DA] shadow-xs space-y-4">
-            <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-700 font-mono flex items-center gap-2">
-              <Wrench className="w-4 h-4" /> 4. Capabilities &amp; Risk Classifications
-            </h2>
+          <div className="p-6 rounded-xl bg-white border border-[#E6E2DA] shadow-xs space-y-5">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-emerald-700 font-mono flex items-center gap-2">
+                <Wrench className="w-4 h-4" /> 4. Capabilities &amp; Tool Access
+              </h2>
+              <p className="text-[11px] text-neutral-500">
+                Choose the tools this agent is authorized to invoke. Tools are classified by execution risk.
+              </p>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              {[
-                {
-                  id: "get_sensor_data",
-                  name: "get_sensor_data()",
-                  desc: "ESP32 real-time I2C telemetry",
-                  risk: "LOW",
-                  color: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                },
-                {
-                  id: "query_memory",
-                  name: "query_memory()",
-                  desc: "Episodic memory & learned policies query",
-                  risk: "LOW",
-                  color: "bg-emerald-50 text-emerald-700 border-emerald-300",
-                },
-                {
-                  id: "send_notification",
-                  name: "send_notification()",
-                  desc: "Multi-channel broadcast (WhatsApp, Discord)",
-                  risk: "MEDIUM",
-                  color: "bg-amber-50 text-amber-800 border-amber-300",
-                },
-                {
-                  id: "emergency_compressor_cutoff",
-                  name: "emergency_compressor_cutoff()",
-                  desc: "Hardware relay cutoff (Strict Approval Gated)",
-                  risk: "HIGH",
-                  color: "bg-rose-50 text-rose-700 border-rose-300",
-                },
-              ].map((tool) => (
-                <div
-                  key={tool.id}
-                  onClick={() => {
-                    if (selectedTools.includes(tool.id)) {
-                      setSelectedTools(selectedTools.filter((t) => t !== tool.id));
-                    } else {
-                      setSelectedTools([...selectedTools, tool.id]);
-                    }
-                  }}
-                  className={`p-3 rounded-lg border cursor-pointer flex items-center justify-between transition ${
-                    selectedTools.includes(tool.id)
-                      ? "bg-white border-[#FA500F] shadow-2xs"
-                      : "bg-[#FAF8F5] border-[#EAE6DE] opacity-60"
-                  }`}
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-neutral-900">{tool.name}</span>
-                      <span className={`px-1.5 py-0.2 text-[9px] font-mono border rounded ${tool.color}`}>
-                        {tool.risk}
-                      </span>
+            {/* Software Capabilities */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold text-neutral-700 block uppercase tracking-wider font-mono">
+                Software &amp; Productivity Tools
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {[
+                  {
+                    id: "read_emails",
+                    name: "read_emails()",
+                    desc: "Scan and parse Gmail inbox messages",
+                    risk: "LOW",
+                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
+                  },
+                  {
+                    id: "web_search",
+                    name: "web_search()",
+                    desc: "Real-time web search and research lookups",
+                    risk: "LOW",
+                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
+                  },
+                  {
+                    id: "query_memory",
+                    name: "query_memory()",
+                    desc: "Episodic memory & learned behavior query",
+                    risk: "LOW",
+                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
+                  },
+                  {
+                    id: "send_notification",
+                    name: "send_notification()",
+                    desc: "Broadcast alerts via WhatsApp, Discord, Telegram",
+                    risk: "MEDIUM",
+                    color: "bg-amber-50 text-amber-800 border-amber-300",
+                  },
+                  {
+                    id: "database_query",
+                    name: "database_query()",
+                    desc: "Read records, audit logs, and application state",
+                    risk: "LOW",
+                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
+                  },
+                ].map((tool) => (
+                  <div
+                    key={tool.id}
+                    onClick={() => {
+                      if (selectedTools.includes(tool.id)) {
+                        setSelectedTools(selectedTools.filter((t) => t !== tool.id));
+                      } else {
+                        setSelectedTools([...selectedTools, tool.id]);
+                      }
+                    }}
+                    className={`p-3 rounded-lg border cursor-pointer flex items-center justify-between transition ${
+                      selectedTools.includes(tool.id)
+                        ? "bg-white border-[#FA500F] shadow-2xs"
+                        : "bg-[#FAF8F5] border-[#EAE6DE] opacity-60"
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-neutral-900">{tool.name}</span>
+                        <span className={`px-1.5 py-0.2 text-[9px] font-mono border rounded ${tool.color}`}>
+                          {tool.risk}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-500">{tool.desc}</p>
                     </div>
-                    <p className="text-[11px] text-neutral-500">{tool.desc}</p>
+                    <input
+                      type="checkbox"
+                      checked={selectedTools.includes(tool.id)}
+                      onChange={() => {}}
+                      className="accent-[#FA500F] w-4 h-4 pointer-events-none"
+                    />
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={selectedTools.includes(tool.id)}
-                    onChange={() => {}}
-                    className="accent-[#FA500F] w-4 h-4 pointer-events-none"
-                  />
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+
+            {/* Optional Hardware Capabilities */}
+            <div className="space-y-2 pt-2 border-t border-[#F0EBE1]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-neutral-700 block uppercase tracking-wider font-mono">
+                  Physical Hardware &amp; IoT Tools (Optional)
+                </span>
+                {!hasHardware && (
+                  <span className="text-[10px] text-neutral-400 font-mono italic">
+                    Enable hardware binding in Section 1 to use with physical devices
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                {[
+                  {
+                    id: "get_sensor_data",
+                    name: "get_sensor_data()",
+                    desc: "Sample real-time I2C/SPI sensor telemetry from device",
+                    risk: "LOW",
+                    color: "bg-emerald-50 text-emerald-700 border-emerald-300",
+                  },
+                  {
+                    id: "emergency_relay_cutoff",
+                    name: "emergency_relay_cutoff()",
+                    desc: "Physical actuator cutoff (Strict Human Approval Gated)",
+                    risk: "HIGH",
+                    color: "bg-rose-50 text-rose-700 border-rose-300",
+                  },
+                ].map((tool) => (
+                  <div
+                    key={tool.id}
+                    onClick={() => {
+                      if (selectedTools.includes(tool.id)) {
+                        setSelectedTools(selectedTools.filter((t) => t !== tool.id));
+                      } else {
+                        setSelectedTools([...selectedTools, tool.id]);
+                      }
+                    }}
+                    className={`p-3 rounded-lg border cursor-pointer flex items-center justify-between transition ${
+                      selectedTools.includes(tool.id)
+                        ? "bg-white border-[#FA500F] shadow-2xs"
+                        : "bg-[#FAF8F5] border-[#EAE6DE] opacity-60"
+                    }`}
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-bold text-neutral-900">{tool.name}</span>
+                        <span className={`px-1.5 py-0.2 text-[9px] font-mono border rounded ${tool.color}`}>
+                          {tool.risk}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-500">{tool.desc}</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={selectedTools.includes(tool.id)}
+                      onChange={() => {}}
+                      className="accent-[#FA500F] w-4 h-4 pointer-events-none"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -457,21 +724,21 @@ Your mission is to preserve pharmaceutical integrity.
           </div>
         </div>
 
-        {/* Bottom CTA */}
-        <div className="pt-4 pb-12 flex items-center justify-end gap-3">
+        {/* Bottom Actions */}
+        <div className="pt-4 flex items-center justify-end gap-3">
           <Link
             href="/"
-            className="px-4 py-2.5 rounded-lg border border-[#E0DCD4] text-xs font-semibold text-neutral-700 hover:bg-neutral-100 transition"
+            className="px-5 py-2.5 rounded-lg border border-[#E0DCD4] bg-white hover:bg-neutral-50 text-xs font-bold text-neutral-700 transition"
           >
             Cancel
           </Link>
           <button
             onClick={handleCreate}
             disabled={isSubmitting}
-            className="px-6 py-2.5 rounded-lg bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs shadow-md transition flex items-center gap-2 disabled:opacity-50"
+            className="px-6 py-2.5 rounded-lg bg-[#FA500F] hover:bg-[#ff6422] text-white font-bold text-xs shadow-md transition flex items-center gap-2 disabled:opacity-50 cursor-pointer"
           >
             <Check className="w-4 h-4" />
-            {isSubmitting ? "Deploying Agent..." : "Save & Launch Agent in Studio"}
+            {isSubmitting ? "Deploying..." : "Save & Launch Agent in Studio"}
           </button>
         </div>
       </main>
